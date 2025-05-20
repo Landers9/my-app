@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react/no-unescaped-entities */
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Animation initiale au chargement
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +30,9 @@ export default function LoginPage() {
     try {
       // Simuler une requête d'authentification (à remplacer par un vrai appel API)
       await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Animation de sortie avant redirection
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       // Si la connexion réussit, rediriger vers le dashboard
       router.push("/dashboard");
@@ -38,11 +48,69 @@ export default function LoginPage() {
   const buttonClass = "w-full p-3 bg-[#1EB1D1] hover:bg-[#062C57] text-white rounded-md transition duration-300 font-medium";
   const labelClass = "mb-1 text-sm text-gray-700";
 
+  // Variantes d'animation
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.5,
+        when: "beforeChildren",
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100,
+        damping: 10
+      }
+    }
+  };
+
+  const buttonVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 200,
+        damping: 10
+      }
+    },
+    hover: {
+      scale: 1.03,
+      boxShadow: "0 5px 10px rgba(0, 0, 0, 0.1)",
+      transition: {
+        type: "spring",
+        stiffness: 400,
+        damping: 10
+      }
+    },
+    tap: { scale: 0.98 },
+    loading: {
+      scale: 1,
+      opacity: 0.8
+    }
+  };
+
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-white">
+    <div className="flex flex-col md:flex-row h-screen bg-white overflow-hidden">
       {/* Image de gauche - fixe même en cas de défilement */}
       <div className="hidden md:block md:w-1/2 relative">
-        <div className="fixed w-1/2 h-screen">
+        <motion.div
+          className="fixed w-1/2 h-screen"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+        >
           <Image
             src="/images/welcome.jpg"
             alt="Poignée de main entre un humain et un robot"
@@ -50,7 +118,14 @@ export default function LoginPage() {
             style={{ objectFit: "cover" }}
             priority
           />
-        </div>
+          {/* Overlay gradué qui disparaît progressivement */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent"
+            initial={{ opacity: 0.7 }}
+            animate={{ opacity: 0.3 }}
+            transition={{ delay: 0.5, duration: 1.5 }}
+          />
+        </motion.div>
       </div>
 
       {/* Image mobile (uniquement visible sur les petits écrans) */}
@@ -65,32 +140,60 @@ export default function LoginPage() {
       </div>
 
       {/* Formulaire à droite avec défilement */}
-      <div
+      <motion.div
         className="w-full md:w-1/2 flex flex-col p-8 overflow-y-auto"
         style={{ maxHeight: "100vh" }}
+        initial={{ opacity: 0, x: 50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
       >
         {/* Logo */}
-        <div className="mb-6 self-center">
+        <motion.div
+          className="mb-6 self-center"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{
+            duration: 0.5,
+            type: "spring",
+            stiffness: 200
+          }}
+        >
           <Image
             src="/images/logo_mts.png"
             alt="Millennium Tech"
             width={180}
             height={40}
           />
-        </div>
+        </motion.div>
 
-        <h1 className="text-2xl font-bold mb-8 text-center text-[#062C57]">
+        <motion.h1
+          className="text-2xl font-bold mb-8 text-center text-[#062C57]"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
           Vous revoilà !
-        </h1>
+        </motion.h1>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <motion.div
+            className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            transition={{ duration: 0.3 }}
+          >
             {error}
-          </div>
+          </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+        <motion.form
+          onSubmit={handleSubmit}
+          className="space-y-4"
+          variants={containerVariants}
+          initial="hidden"
+          animate={isLoaded ? "visible" : "hidden"}
+        >
+          <motion.div variants={itemVariants}>
             <div className={labelClass}>Adresse mail</div>
             <input
               type="email"
@@ -100,17 +203,22 @@ export default function LoginPage() {
               className={inputClass}
               required
             />
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div variants={itemVariants}>
             <div className="flex justify-between">
               <div className={labelClass}>Mot de passe</div>
-              <Link
-                href="/auth/forgot-password"
-                className="text-xs text-[#1EB1D1] hover:text-[#062C57]"
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
               >
-                Mot de passe oublié ?
-              </Link>
+                <Link
+                  href="/auth/forgot-password"
+                  className="text-xs text-[#1EB1D1] hover:text-[#062C57]"
+                >
+                  Mot de passe oublié ?
+                </Link>
+              </motion.div>
             </div>
             <div className="relative">
               <input
@@ -121,10 +229,12 @@ export default function LoginPage() {
                 className={inputClass}
                 required
               />
-              <button
+              <motion.button
                 type="button"
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-600"
                 onClick={() => setShowPassword(!showPassword)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
               >
                 {showPassword ? (
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -137,34 +247,58 @@ export default function LoginPage() {
                     <circle cx="12" cy="12" r="3"></circle>
                   </svg>
                 )}
-              </button>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="flex items-center">
-            <input
+          <motion.div
+            className="flex items-center"
+            variants={itemVariants}
+          >
+            <motion.input
               type="checkbox"
               id="remember-me"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
               className="h-4 w-4 text-[#1EB1D1] focus:ring-[#1EB1D1] rounded"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
             />
             <label htmlFor="remember-me" className="ml-2 text-sm text-gray-700">
               Se souvenir de moi
             </label>
-          </div>
+          </motion.div>
 
-          <button
+          <motion.button
             type="submit"
             disabled={isLoading}
             className={buttonClass}
+            variants={buttonVariants}
+            animate={isLoading ? "loading" : "visible"}
+            whileHover={!isLoading ? "hover" : undefined}
+            whileTap={!isLoading ? "tap" : undefined}
           >
-            {isLoading ? "Connexion en cours..." : "Se connecter"}
-          </button>
-        </form>
+            {isLoading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Connexion en cours...
+              </span>
+            ) : (
+              "Se connecter"
+            )}
+          </motion.button>
+        </motion.form>
 
         {/* Bouton pour revenir à l'accueil (visible uniquement sur mobile) */}
-        <div className="mt-auto pt-6 md:hidden">
+        <motion.div
+          className="mt-auto pt-6 md:hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+        >
           <Link
             href="/"
             className="text-sm text-[#062C57] hover:text-[#1EB1D1] flex items-center justify-center"
@@ -186,31 +320,41 @@ export default function LoginPage() {
             </svg>
             Retour à l'accueil
           </Link>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* CTA dans le coin inférieur gauche (sur la partie image) - visible uniquement sur desktop */}
-      <div className="hidden md:block absolute bottom-8 left-8">
-        <Link
-          href="/"
-          className="inline-flex items-center px-4 py-2 border border-white text-white bg-transparent hover:bg-white hover:text-[#062C57] rounded-md transition-colors duration-300"
+      <motion.div
+        className="hidden md:block absolute bottom-8 left-8"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1, duration: 0.5 }}
+      >
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          <span className="mr-2">Retour à l'accueil</span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >S'in
-            <path d="M5 12h13M12 5l7 7-7 7"/>
-          </svg>
-        </Link>
-      </div>
+          <Link
+            href="/"
+            className="inline-flex items-center px-4 py-2 border border-white text-white bg-transparent hover:bg-white hover:text-[#062C57] rounded-md transition-colors duration-300"
+          >
+            <span className="mr-2">Retour à l'accueil</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M5 12h13M12 5l7 7-7 7"/>
+            </svg>
+          </Link>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

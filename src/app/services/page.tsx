@@ -1,20 +1,38 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Import dynamique de l'éditeur de texte riche pour éviter les erreurs de SSR
 const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), {
   ssr: false,
-  loading: () => <p>Chargement de l'éditeur...</p>,
+  loading: () => (
+    <motion.p
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      Chargement de l'éditeur...
+    </motion.p>
+  ),
 });
 
 // Composant pour l'enregistrement audio
 const AudioRecorder = dynamic(() => import("@/components/AudioRecorder"), {
   ssr: false,
-  loading: () => <p>Chargement de l'enregistreur audio...</p>,
+  loading: () => (
+    <motion.p
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      Chargement de l'enregistreur audio...
+    </motion.p>
+  ),
 });
 
 // Définition des types
@@ -170,6 +188,108 @@ const fetchFormFields = async (serviceId: string): Promise<FormField[]> => {
   return fields.sort((a, b) => a.order - b.order);
 };
 
+// Animations variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      duration: 0.5,
+      when: "beforeChildren",
+      staggerChildren: 0.1
+    }
+  },
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.2 }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 100,
+      damping: 10
+    }
+  }
+};
+
+const buttonVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 200,
+      damping: 10
+    }
+  },
+  hover: {
+    scale: 1.05,
+    boxShadow: "0 5px 10px rgba(0, 0, 0, 0.1)",
+    transition: {
+      type: "spring",
+      stiffness: 400,
+      damping: 10
+    }
+  },
+  tap: { scale: 0.98 }
+};
+
+const stepIndicatorVariants = {
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 15,
+      delayChildren: 0.1,
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const indicatorItemVariants = {
+  hidden: { scale: 0.8, opacity: 0 },
+  visible: {
+    scale: 1,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 20
+    }
+  }
+};
+
+// Animation pour les transitions entre étapes
+const pageTransition = {
+  initial: { opacity: 0, x: 100 },
+  animate: {
+    opacity: 1,
+    x: 0,
+    transition: {
+      type: "spring",
+      stiffness: 100,
+      damping: 15
+    }
+  },
+  exit: {
+    opacity: 0,
+    x: -100,
+    transition: {
+      duration: 0.2
+    }
+  }
+};
+
 export default function ServiceForm() {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData>({
@@ -185,9 +305,15 @@ export default function ServiceForm() {
   const [formFields, setFormFields] = useState<FormField[]>([]);
   const [currentStep, setCurrentStep] = useState<number>(0); // Étape 0: sélection du service
   const [totalSteps, setTotalSteps] = useState<number>(4); // Total des étapes (mise à jour dynamique)
+  const [isLoaded, setIsLoaded] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
-  const [hasInitiatedSubmit, setHasInitiatedSubmit] = useState<boolean>(false); // Nouveau état pour suivre si l'utilisateur a intentionnellement soumis
+  const [hasInitiatedSubmit, setHasInitiatedSubmit] = useState<boolean>(false); // Nouvel état pour suivre si l'utilisateur a intentionnellement soumis
   const formSubmitButtonRef = useRef<HTMLButtonElement>(null); // Référence au bouton de soumission
+
+  // Animation initiale au chargement
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
 
   // Liste des services disponibles (à remplacer par un appel API)
   const services: Service[] = [
@@ -363,7 +489,11 @@ export default function ServiceForm() {
     // Étape 0: sélection du service
     if (currentStep === 0) {
       return (
-        <div>
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={itemVariants}
+        >
           <select
             name="serviceId"
             value={formData.serviceId as string}
@@ -378,7 +508,7 @@ export default function ServiceForm() {
               </option>
             ))}
           </select>
-        </div>
+        </motion.div>
       );
     }
 
@@ -386,12 +516,20 @@ export default function ServiceForm() {
     const currentStepFields = formFields.filter(field => field.step === currentStep);
 
     return (
-      <>
-        {/* Si ce n'est pas l'étape 1, ajouter un bouton pour changer de service */}
-
-
-        {currentStepFields.map((field) => (
-          <div key={field.id} className="mb-4">
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="space-y-4"
+      >
+        {currentStepFields.map((field, index) => (
+          <motion.div
+            key={field.id}
+            variants={itemVariants}
+            custom={index}
+            className="mb-4"
+          >
             {field.type === "text" && (
               <>
                 <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
@@ -439,20 +577,26 @@ export default function ServiceForm() {
               <>
                 <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
                 <div className="space-y-1 bg-gray-200 p-3 rounded-md">
-                  {JSON.parse(field.options).map((option: string, index: number) => (
-                    <div key={index} className="flex items-center">
+                  {JSON.parse(field.options).map((option: string, idx: number) => (
+                    <motion.div
+                      key={idx}
+                      className="flex items-center"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                    >
                       <input
                         type="checkbox"
-                        id={`${field.name}-${index}`}
+                        id={`${field.name}-${idx}`}
                         name={field.name}
                         value={option}
                         checked={(formData[field.name] as string[] || []).includes(option)}
                         onChange={handleChange}
                         className="mr-2 focus:ring-[#062C57]"
-                        required={field.is_required && index === 0} // Seul le premier est marqué comme required
+                        required={field.is_required && idx === 0} // Seul le premier est marqué comme required
                       />
-                      <label htmlFor={`${field.name}-${index}`} className="text-gray-700">{option}</label>
-                    </div>
+                      <label htmlFor={`${field.name}-${idx}`} className="text-gray-700">{option}</label>
+                    </motion.div>
                   ))}
                 </div>
               </>
@@ -462,11 +606,17 @@ export default function ServiceForm() {
               <>
                 <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
                 <div className="space-y-1 bg-gray-200 p-3 rounded-md">
-                  {JSON.parse(field.options).map((option: string, index: number) => (
-                    <div key={index} className="flex items-center">
+                  {JSON.parse(field.options).map((option: string, idx: number) => (
+                    <motion.div
+                      key={idx}
+                      className="flex items-center"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                    >
                       <input
                         type="radio"
-                        id={`${field.name}-${index}`}
+                        id={`${field.name}-${idx}`}
                         name={field.name}
                         value={option}
                         checked={(formData[field.name] as string) === option}
@@ -474,8 +624,8 @@ export default function ServiceForm() {
                         className="mr-2 focus:ring-[#062C57]"
                         required={field.is_required}
                       />
-                      <label htmlFor={`${field.name}-${index}`} className="text-gray-700">{option}</label>
-                    </div>
+                      <label htmlFor={`${field.name}-${idx}`} className="text-gray-700">{option}</label>
+                    </motion.div>
                   ))}
                 </div>
               </>
@@ -503,34 +653,47 @@ export default function ServiceForm() {
                 </div>
                 {/* Afficher la liste des fichiers sélectionnés */}
                 {formData.files && (formData.files as File[]).length > 0 && (
-                  <div className="mt-2 bg-gray-100 p-3 rounded-md">
+                  <motion.div
+                    className="mt-2 bg-gray-100 p-3 rounded-md"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    transition={{ duration: 0.3 }}
+                  >
                     <p className="text-sm font-semibold text-gray-700">Fichiers sélectionnés ({(formData.files as File[]).length}):</p>
                     <ul className="mt-2 max-h-40 overflow-y-auto">
-                      {(formData.files as File[]).map((file, index) => (
-                        <li key={index} className="flex justify-between items-center py-1 border-b border-gray-200 last:border-0">
+                      {(formData.files as File[]).map((file, idx) => (
+                        <motion.li
+                          key={idx}
+                          className="flex justify-between items-center py-1 border-b border-gray-200 last:border-0"
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                        >
                           <div className="text-sm text-gray-700 truncate max-w-[80%]">
                             {file.name} ({(file.size / 1024).toFixed(1)} KB)
                           </div>
-                          <button
+                          <motion.button
                             type="button"
-                            onClick={() => handleRemoveFile(index)}
+                            onClick={() => handleRemoveFile(idx)}
                             className="text-red-500 hover:text-red-700 text-sm p-1"
                             title="Supprimer ce fichier"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M18 6L6 18M6 6l12 12"/>
                             </svg>
-                          </button>
-                        </li>
+                          </motion.button>
+                        </motion.li>
                       ))}
                     </ul>
-                  </div>
+                  </motion.div>
                 )}
               </>
             )}
-          </div>
+          </motion.div>
         ))}
-      </>
+      </motion.div>
     );
   };
 
@@ -539,13 +702,23 @@ export default function ServiceForm() {
     const isLastStep = currentStep === totalSteps - 1; // Dernière étape
 
     return (
-      <div className="flex justify-between mt-6">
+      <motion.div
+        className="flex justify-between mt-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
         {currentStep > 0 && (
-          <button
+          <motion.button
             type="button"
             onClick={goToPreviousStep}
             className="h-12 w-12 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors"
             aria-label="Précédent"
+            variants={buttonVariants}
+            initial="hidden"
+            animate="visible"
+            whileHover="hover"
+            whileTap="tap"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -561,11 +734,11 @@ export default function ServiceForm() {
             >
               <path d="M15 18l-6-6 6-6" />
             </svg>
-          </button>
+          </motion.button>
         )}
 
         {!isLastStep ? (
-          <button
+          <motion.button
             type="button"
             onClick={goToNextStep}
             className={`ml-auto h-12 w-12 rounded-full flex items-center justify-center transition-colors ${
@@ -575,6 +748,11 @@ export default function ServiceForm() {
             }`}
             disabled={currentStep === 0 && !formData.serviceId}
             aria-label="Suivant"
+            variants={buttonVariants}
+            initial="hidden"
+            animate="visible"
+            whileHover="hover"
+            whileTap="tap"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -590,29 +768,53 @@ export default function ServiceForm() {
             >
               <path d="M9 18l6-6-6-6" />
             </svg>
-          </button>
+          </motion.button>
         ) : (
-          <button
+          <motion.button
             ref={formSubmitButtonRef}
             type="button" // Changé en type="button" pour gérer manuellement la soumission
             disabled={isSubmitting}
             className="ml-auto px-6 py-2 bg-[#1EB1D1] text-white rounded-md hover:bg-[#062C57] transition flex items-center"
             onClick={handleSubmitButtonClick} // Utiliser notre gestionnaire personnalisé
+            variants={buttonVariants}
+            initial="hidden"
+            animate="visible"
+            whileHover="hover"
+            whileTap="tap"
           >
-            {isSubmitting ? "Envoi en cours..." : "Envoyer"}
-          </button>
+            {isSubmitting ? (
+              <span className="flex items-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Envoi en cours...
+              </span>
+            ) : (
+              "Envoyer"
+            )}
+          </motion.button>
         )}
-      </div>
+      </motion.div>
     );
   };
 
   // Indicateur d'étapes
   const renderStepIndicator = () => {
     return (
-      <div className="flex justify-center mb-8">
+      <motion.div
+        className="flex justify-center mb-8"
+        variants={stepIndicatorVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {Array.from({ length: totalSteps }).map((_, index) => (
-          <div key={index} className="flex items-center">
-            <div
+          <motion.div
+            key={index}
+            className="flex items-center"
+            variants={indicatorItemVariants}
+          >
+            <motion.div
               className={`w-8 h-8 rounded-full flex items-center justify-center ${
                 index < currentStep
                   ? 'bg-[#062C57] text-white'
@@ -620,19 +822,24 @@ export default function ServiceForm() {
                     ? 'bg-[#1EB1D1] text-white'
                     : 'bg-gray-200 text-gray-700'
               }`}
+              whileHover={{ scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
               {index + 1}
-            </div>
+            </motion.div>
             {index < totalSteps - 1 && (
-              <div
+              <motion.div
                 className={`h-1 w-10 ${
                   index < currentStep ? 'bg-[#062C57]' : 'bg-gray-200'
                 }`}
-              ></div>
+                initial={{ width: 0 }}
+                animate={{ width: "40px" }}
+                transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
+              ></motion.div>
             )}
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     );
   };
 
@@ -663,10 +870,15 @@ export default function ServiceForm() {
   }, [currentStep, totalSteps, hasInitiatedSubmit]);
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-white">
+    <div className="flex flex-col md:flex-row h-screen bg-white overflow-hidden">
       {/* Image de gauche - fixe même en cas de défilement */}
       <div className="hidden md:block md:w-1/2 relative">
-        <div className="fixed w-1/2 h-screen">
+        <motion.div
+          className="fixed w-1/2 h-screen"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8 }}
+        >
           <Image
             src="/images/welcome.jpg"
             alt="Poignée de main entre un humain et un robot"
@@ -674,7 +886,14 @@ export default function ServiceForm() {
             style={{ objectFit: "cover" }}
             priority
           />
-        </div>
+          {/* Overlay gradué qui disparaît progressivement */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent"
+            initial={{ opacity: 0.7 }}
+            animate={{ opacity: 0.3 }}
+            transition={{ delay: 0.5, duration: 1.5 }}
+          />
+        </motion.div>
       </div>
 
       {/* Image mobile (uniquement visible sur les petits écrans) */}
@@ -689,24 +908,41 @@ export default function ServiceForm() {
       </div>
 
       {/* Formulaire à droite avec défilement */}
-      <div
+      <motion.div
         ref={formRef}
         className="w-full md:w-1/2 flex flex-col p-8 overflow-y-auto"
         style={{ maxHeight: "100vh" }}
+        initial={{ opacity: 0, x: 50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
       >
         {/* Logo */}
-        <div className="mb-6 self-center">
+        <motion.div
+          className="mb-6 self-center"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{
+            duration: 0.5,
+            type: "spring",
+            stiffness: 200
+          }}
+        >
           <Image
             src="/images/logo_mts.png"
             alt="Millennium Tech"
             width={180}
             height={40}
           />
-        </div>
+        </motion.div>
 
-        <h1 className="text-2xl font-bold mb-4 text-center text-[#062C57]">
+        <motion.h1
+          className="text-2xl font-bold mb-4 text-center text-[#062C57]"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
           Dites-nous en plus !
-        </h1>
+        </motion.h1>
 
         {/* Indicateur d'étapes */}
         {currentStep > 0 && renderStepIndicator()}
@@ -717,17 +953,35 @@ export default function ServiceForm() {
         */}
         <div className="flex-1 flex flex-col">
           {/* Titre de l'étape actuelle */}
-          <h2 className="text-xl mb-4 text-[#062C57]">
-            {currentStep === 0 && "Sélectionnez un service"}
-            {currentStep === 1 && "Vos informations"}
-            {currentStep === 2 && "Détails du projet"}
-            {currentStep === 3 && "Fichiers additionnels"}
-          </h2>
+          <AnimatePresence mode="wait">
+            <motion.h2
+              key={`step-title-${currentStep}`}
+              className="text-xl mb-4 text-[#062C57]"
+              variants={pageTransition}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              {currentStep === 0 && "Sélectionnez un service"}
+              {currentStep === 1 && "Vos informations"}
+              {currentStep === 2 && "Détails du projet"}
+              {currentStep === 3 && "Fichiers additionnels"}
+            </motion.h2>
+          </AnimatePresence>
 
           {/* Contenu de l'étape */}
-          <div className="flex-1">
-            {renderCurrentStepFields()}
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`step-content-${currentStep}`}
+              className="flex-1"
+              variants={pageTransition}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              {renderCurrentStepFields()}
+            </motion.div>
+          </AnimatePresence>
 
           {/* Boutons de navigation */}
           {renderNavigationButtons()}
@@ -741,7 +995,7 @@ export default function ServiceForm() {
             <input type="hidden" name="formSubmitted" value="true" />
           </form>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
