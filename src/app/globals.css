@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -23,4 +24,36 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Scrollbar personnalisée pour tous les navigateurs WebKit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px; /* Largeur de la scrollbar verticale */
+  height: 6px; /* Hauteur de la scrollbar horizontale */
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9; /* Couleur de fond de la piste */
+  border-radius: 10px; /* Coins arrondis */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1EB1D1; /* Couleur principale */
+  border-radius: 10px; /* Coins arrondis */
+  transition: background 0.3s ease; /* Transition fluide */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #17a2b8; /* Couleur au survol */
+}
+
+/* Pour Firefox */
+* {
+  scrollbar-width: thin; /* Scrollbar fine */
+  scrollbar-color: #1EB1D1 #f1f5f9; /* Couleur du thumb et de la piste */
+}
+
+/* Styles supplémentaires pour une meilleure expérience */
+html {
+  scroll-behavior: smooth; /* Défilement fluide */
 }
