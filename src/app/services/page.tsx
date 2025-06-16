@@ -21,157 +21,402 @@ const AudioRecorder = dynamic(() => import("@/components/AudioRecorder"), {
   ),
 });
 
-// Définition des types
+// Définition des types basés sur la structure de la DB
+type FormFieldType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'date'
+  | 'email'
+  | 'select'
+  | 'checkbox'
+  | 'radio'
+  | 'files_document'
+  | 'files_image'
+  | 'file_audio';
+
 type FormField = {
-  id: string;
+  id: number;
   label: string;
   name: string;
-  type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'checkbox' | 'radio' | 'audio' | 'files';
-  options?: string;
+  type: FormFieldType;
+  options: string[] | null; // JSON parsé
   is_required: boolean;
-  order: number;
-  step?: number; // Ajout d'un champ pour indiquer l'étape
+  position: number;
+  step: number;
+};
+
+type Category = {
+  id: number;
+  name: string;
+  description: string;
+  cover_image: string | null;
+  slogan: string | null;
+};
+
+type Service = {
+  id: number;
+  category_id: number;
+  name: string;
+  description: string | null;
+  price: number | null;
+  is_active: boolean;
+  category?: Category;
 };
 
 type FormData = {
   [key: string]: string | string[] | File[] | Blob | null;
-  email: string;
-  name: string;
-  serviceId: string;
-  description: string;
-  budget: string;
-  audio: Blob | null;
-  files: File[];
 };
 
-type Service = {
-  id: string;
-  name: string;
-};
+// Fonction pour récupérer les services
+const fetchServices = async (): Promise<Service[]> => {
+  // Simuler un appel API avec des données réalistes
+  await new Promise(resolve => setTimeout(resolve, 300));
 
-// Fonction pour récupérer les champs de formulaire pour un service (simulé)
-const fetchFormFields = async (serviceId: string): Promise<FormField[]> => {
-  // Simuler un appel API - à remplacer par un vrai appel API
-  await new Promise(resolve => setTimeout(resolve, 500)); // Simuler un délai réseau
-
-  // Champs de formulaire basés sur le schéma de base de données
-  const commonFields: FormField[] = [
+  return [
     {
-      id: "1",
-      label: "Email",
-      name: "email",
-      type: "text",
-      is_required: true,
-      order: 1,
-      step: 1 // Étape 1
+      id: 1,
+      category_id: 1,
+      name: "Développement d'application web",
+      description: "Création d'applications web modernes et responsive",
+      price: 2500.00,
+      is_active: true,
+      category: {
+        id: 1,
+        name: "Services informatiques",
+        description: "Développement et maintenance informatique",
+        cover_image: null,
+        slogan: "Innovation technologique"
+      }
     },
     {
-      id: "2",
-      label: "Nom complet",
-      name: "name",
+      id: 2,
+      category_id: 1,
+      name: "Développement d'application mobile",
+      description: "Applications iOS et Android natives ou hybrides",
+      price: 3500.00,
+      is_active: true,
+      category: {
+        id: 1,
+        name: "Services informatiques",
+        description: "Développement et maintenance informatique",
+        cover_image: null,
+        slogan: "Innovation technologique"
+      }
+    },
+    {
+      id: 3,
+      category_id: 2,
+      name: "Design graphique et branding",
+      description: "Création d'identité visuelle et supports graphiques",
+      price: 1200.00,
+      is_active: true,
+      category: {
+        id: 2,
+        name: "Services de communication",
+        description: "Graphisme, marketing et communication",
+        cover_image: null,
+        slogan: "Créativité et impact"
+      }
+    },
+    {
+      id: 4,
+      category_id: 3,
+      name: "Conseil juridique entreprise",
+      description: "Accompagnement juridique pour entreprises",
+      price: 150.00,
+      is_active: true,
+      category: {
+        id: 3,
+        name: "Services juridiques",
+        description: "Conseil, contrats et accompagnement juridique",
+        cover_image: null,
+        slogan: "Expertise et sécurité"
+      }
+    }
+  ];
+};
+
+// Fonction pour récupérer les champs de formulaire pour un service
+const fetchFormFields = async (serviceId: number): Promise<FormField[]> => {
+  await new Promise(resolve => setTimeout(resolve, 400));
+
+  // Champs de base pour tous les services (step 1 - Informations utilisateur)
+  const baseFields: FormField[] = [
+    {
+      id: 1,
+      label: "Prénom",
+      name: "first_name",
       type: "text",
+      options: null,
       is_required: true,
-      order: 2,
-      step: 1 // Étape 1
+      position: 1,
+      step: 1
+    },
+    {
+      id: 2,
+      label: "Nom de famille",
+      name: "last_name",
+      type: "text",
+      options: null,
+      is_required: true,
+      position: 2,
+      step: 1
+    },
+    {
+      id: 3,
+      label: "Adresse email",
+      name: "email",
+      type: "email",
+      options: null,
+      is_required: true,
+      position: 3,
+      step: 1
+    },
+    {
+      id: 4,
+      label: "Numéro de téléphone",
+      name: "phone",
+      type: "text",
+      options: null,
+      is_required: false,
+      position: 4,
+      step: 1
     }
   ];
 
-  // Champs spécifiques en fonction du service
-  const serviceSpecificFields: { [key: string]: FormField[] } = {
-    "1": [ // Développement web
+  // Champs spécifiques par service (step 2 - Informations projet)
+  const serviceSpecificFields: { [key: number]: FormField[] } = {
+    1: [ // Développement web
       {
-        id: "3",
-        label: "Description du projet",
-        name: "description",
+        id: 5,
+        label: "Description détaillée du projet",
+        name: "project_description",
         type: "textarea",
+        options: null,
         is_required: true,
-        order: 3,
-        step: 2 // Étape 2
+        position: 1,
+        step: 2
       },
       {
-        id: "4",
-        label: "Budget estimé",
-        name: "budget",
-        type: "number",
-        is_required: false,
-        order: 4,
-        step: 2 // Étape 2
+        id: 6,
+        label: "Type de site web",
+        name: "website_type",
+        type: "select",
+        options: ["Site vitrine", "E-commerce", "Blog", "Application web", "Portfolio", "Site institutionnel"],
+        is_required: true,
+        position: 2,
+        step: 2
       },
       {
-        id: "5",
-        label: "Fonctionnalités requises",
+        id: 7,
+        label: "Fonctionnalités souhaitées",
         name: "features",
         type: "checkbox",
-        options: JSON.stringify(["E-commerce", "Blog", "Espace membre", "Paiement en ligne", "CMS"]),
+        options: ["Système de paiement", "Espace membre", "Blog intégré", "Multilingue", "SEO optimisé", "Responsive design"],
         is_required: false,
-        order: 5,
-        step: 2 // Étape 2
-      }
-    ],
-    "2": [ // Développement mobile
-      {
-        id: "6",
-        label: "Description du projet",
-        name: "description",
-        type: "textarea",
-        is_required: true,
-        order: 3,
-        step: 2 // Étape 2
+        position: 3,
+        step: 2
       },
       {
-        id: "7",
-        label: "Plateforme",
-        name: "platform",
-        type: "radio",
-        options: JSON.stringify(["iOS", "Android", "Les deux"]),
-        is_required: true,
-        order: 4,
-        step: 2 // Étape 2
-      },
-      {
-        id: "8",
-        label: "Budget estimé",
+        id: 8,
+        label: "Budget approximatif (€)",
         name: "budget",
         type: "number",
+        options: null,
         is_required: false,
-        order: 5,
-        step: 2 // Étape 2
+        position: 4,
+        step: 2
+      },
+      {
+        id: 9,
+        label: "Date de livraison souhaitée",
+        name: "delivery_date",
+        type: "date",
+        options: null,
+        is_required: false,
+        position: 5,
+        step: 2
       }
     ],
+    2: [ // Développement mobile
+      {
+        id: 10,
+        label: "Description de l'application",
+        name: "app_description",
+        type: "textarea",
+        options: null,
+        is_required: true,
+        position: 1,
+        step: 2
+      },
+      {
+        id: 11,
+        label: "Plateforme cible",
+        name: "platform",
+        type: "radio",
+        options: ["iOS uniquement", "Android uniquement", "iOS et Android (hybride)", "iOS et Android (natif)"],
+        is_required: true,
+        position: 2,
+        step: 2
+      },
+      {
+        id: 12,
+        label: "Catégorie d'application",
+        name: "app_category",
+        type: "select",
+        options: ["E-commerce", "Réseau social", "Productivité", "Jeux", "Éducation", "Santé", "Finance", "Autre"],
+        is_required: true,
+        position: 3,
+        step: 2
+      },
+      {
+        id: 13,
+        label: "Fonctionnalités principales",
+        name: "main_features",
+        type: "checkbox",
+        options: ["Authentification utilisateur", "Notifications push", "Géolocalisation", "Paiement intégré", "Mode hors ligne", "Partage social"],
+        is_required: false,
+        position: 4,
+        step: 2
+      },
+      {
+        id: 14,
+        label: "Budget estimé (€)",
+        name: "estimated_budget",
+        type: "number",
+        options: null,
+        is_required: false,
+        position: 5,
+        step: 2
+      }
+    ],
+    3: [ // Design graphique
+      {
+        id: 15,
+        label: "Type de projet graphique",
+        name: "design_type",
+        type: "select",
+        options: ["Logo", "Charte graphique", "Site web design", "Print (flyers, cartes)", "Packaging", "Autre"],
+        is_required: true,
+        position: 1,
+        step: 2
+      },
+      {
+        id: 16,
+        label: "Brief créatif",
+        name: "creative_brief",
+        type: "textarea",
+        options: null,
+        is_required: true,
+        position: 2,
+        step: 2
+      },
+      {
+        id: 17,
+        label: "Style souhaité",
+        name: "design_style",
+        type: "checkbox",
+        options: ["Moderne", "Classique", "Minimaliste", "Coloré", "Élégant", "Dynamique"],
+        is_required: false,
+        position: 3,
+        step: 2
+      },
+      {
+        id: 18,
+        label: "Couleurs préférées",
+        name: "preferred_colors",
+        type: "text",
+        options: null,
+        is_required: false,
+        position: 4,
+        step: 2
+      }
+    ],
+    4: [ // Conseil juridique
+      {
+        id: 19,
+        label: "Type de conseil recherché",
+        name: "legal_type",
+        type: "select",
+        options: ["Création d'entreprise", "Contrats commerciaux", "Droit du travail", "Propriété intellectuelle", "Contentieux", "Autre"],
+        is_required: true,
+        position: 1,
+        step: 2
+      },
+      {
+        id: 20,
+        label: "Description de la situation",
+        name: "legal_situation",
+        type: "textarea",
+        options: null,
+        is_required: true,
+        position: 2,
+        step: 2
+      },
+      {
+        id: 21,
+        label: "Urgence du dossier",
+        name: "urgency",
+        type: "radio",
+        options: ["Très urgent (< 1 semaine)", "Urgent (< 1 mois)", "Normal (1-3 mois)", "Pas urgent"],
+        is_required: true,
+        position: 3,
+        step: 2
+      }
+    ]
   };
 
-  // Ajouter des champs communs à tous les services
-  const audioField: FormField = {
-    id: "9",
-    label: "Message vocal",
-    name: "audio",
-    type: "audio",
-    is_required: false,
-    order: 98,
-    step: 3 // Étape 3
-  };
-
-  const filesField: FormField = {
-    id: "10",
-    label: "Fichiers joints",
-    name: "files",
-    type: "files",
-    is_required: false,
-    order: 99,
-    step: 3 // Étape 3
-  };
+  // Champs médias pour tous les services (step 3)
+  const mediaFields: FormField[] = [
+    {
+      id: 22,
+      label: "Message vocal (optionnel)",
+      name: "audio_message",
+      type: "file_audio",
+      options: null,
+      is_required: false,
+      position: 1,
+      step: 3
+    },
+    {
+      id: 23,
+      label: "Documents de référence",
+      name: "reference_documents",
+      type: "files_document",
+      options: null,
+      is_required: false,
+      position: 2,
+      step: 3
+    },
+    {
+      id: 24,
+      label: "Images d'inspiration",
+      name: "inspiration_images",
+      type: "files_image",
+      options: null,
+      is_required: false,
+      position: 3,
+      step: 3
+    }
+  ];
 
   // Combiner les champs
-  let fields: FormField[] = [...commonFields];
+  let allFields: FormField[] = [...baseFields];
 
-  if (serviceId && serviceSpecificFields[serviceId]) {
-    fields = [...fields, ...serviceSpecificFields[serviceId]];
+  if (serviceSpecificFields[serviceId]) {
+    allFields = [...allFields, ...serviceSpecificFields[serviceId]];
   }
 
-  fields = [...fields, audioField, filesField];
+  allFields = [...allFields, ...mediaFields];
 
-  // Trier par ordre
-  return fields.sort((a, b) => a.order - b.order);
+  // Trier par step puis par position
+  return allFields.sort((a, b) => {
+    if (a.step !== b.step) {
+      return a.step - b.step;
+    }
+    return a.position - b.position;
+  });
 };
 
 // Animations variants
@@ -255,7 +500,6 @@ const indicatorItemVariants = {
   }
 };
 
-// Animation pour les transitions entre étapes
 const pageTransition = {
   initial: { opacity: 0, x: 100 },
   animate: {
@@ -278,59 +522,58 @@ const pageTransition = {
 
 export default function ServiceForm() {
   const router = useRouter();
-  const [formData, setFormData] = useState<FormData>({
-    email: "",
-    name: "",
-    serviceId: "",
-    description: "",
-    budget: "",
-    audio: null,
-    files: [],
-  });
+  const [formData, setFormData] = useState<FormData>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [services, setServices] = useState<Service[]>([]);
   const [formFields, setFormFields] = useState<FormField[]>([]);
-  const [currentStep, setCurrentStep] = useState<number>(0); // Étape 0: sélection du service
-  const [totalSteps, setTotalSteps] = useState<number>(4); // Total des étapes (mise à jour dynamique)
+  const [currentStep, setCurrentStep] = useState<number>(0); // Step 0: sélection service
+  const [totalSteps] = useState<number>(4); // 0: service, 1: user info, 2: project info, 3: media
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoadingFields, setIsLoadingFields] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
-  const [hasInitiatedSubmit, setHasInitiatedSubmit] = useState<boolean>(false); // Nouvel état pour suivre si l'utilisateur a intentionnellement soumis
-  const formSubmitButtonRef = useRef<HTMLButtonElement>(null); // Référence au bouton de soumission
+  const [hasInitiatedSubmit, setHasInitiatedSubmit] = useState<boolean>(false);
 
-  // Animation initiale au chargement
+  // Animation initiale
   useEffect(() => {
     setIsLoaded(true);
+    loadServices();
   }, []);
 
-  // Liste des services disponibles (à remplacer par un appel API)
-  const services: Service[] = [
-    { id: "1", name: "Développement web" },
-    { id: "2", name: "Développement mobile" },
-    { id: "3", name: "Design graphique" },
-    { id: "4", name: "Conseil en stratégie numérique" },
-  ];
+  // Charger les services
+  const loadServices = async () => {
+    try {
+      const servicesData = await fetchServices();
+      setServices(servicesData);
+    } catch (error) {
+      console.error("Erreur lors du chargement des services:", error);
+    }
+  };
 
-  // Effet pour charger les champs quand le service change et que l'utilisateur passe à l'étape suivante
+  // Charger les champs quand le service change
   useEffect(() => {
     const loadFormFields = async () => {
-      if (formData.serviceId && currentStep > 0) {
-        const fields = await fetchFormFields(formData.serviceId as string);
-        setFormFields(fields);
-
-        // Calculer le nombre total d'étapes
-        const maxStep = Math.max(...fields.map(field => field.step || 1), 0);
-        setTotalSteps(maxStep + 1); // +1 pour inclure l'étape de sélection du service
+      if (formData.service_id) {
+        setIsLoadingFields(true);
+        try {
+          const fields = await fetchFormFields(parseInt(formData.service_id as string));
+          setFormFields(fields);
+          console.log("Champs chargés:", fields); // Debug
+        } catch (error) {
+          console.error("Erreur lors du chargement des champs:", error);
+        } finally {
+          setIsLoadingFields(false);
+        }
       }
     };
 
     loadFormFields();
-  }, [formData.serviceId, currentStep]);
+  }, [formData.service_id]);
 
   // Gestion des changements de champs
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
 
     if (type === 'checkbox') {
-      // Pour les cases à cocher, nous devons gérer un tableau de valeurs
       const checked = (e.target as HTMLInputElement).checked;
       const currentValues = formData[name] as string[] || [];
       let newValues: string[];
@@ -343,69 +586,64 @@ export default function ServiceForm() {
 
       setFormData(prev => ({ ...prev, [name]: newValues }));
     } else {
-      // Pour tous les autres types de champs
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
-  // Gestion du changement de description (rich text)
-  const handleRichTextChange = (content: string, fieldName: string) => {
-    setFormData((prev) => ({ ...prev, [fieldName]: content }));
-  };
-
   // Gestion de l'enregistrement audio
   const handleAudioChange = (audioBlob: Blob | null) => {
-    setFormData((prev) => ({ ...prev, audio: audioBlob }));
+    setFormData(prev => ({ ...prev, audio_message: audioBlob }));
   };
 
   // Gestion des fichiers
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     if (e.target.files) {
-      // Récupérer les fichiers existants
-      const existingFiles = formData.files as File[] || [];
-
-      // Ajouter les nouveaux fichiers à ceux existants
+      const existingFiles = formData[fieldName] as File[] || [];
       const newFiles = Array.from(e.target.files);
       const allFiles = [...existingFiles, ...newFiles];
-
-      // Mettre à jour l'état
-      setFormData((prev) => ({ ...prev, files: allFiles }));
+      setFormData(prev => ({ ...prev, [fieldName]: allFiles }));
     }
   };
 
   // Suppression d'un fichier
-  const handleRemoveFile = (indexToRemove: number) => {
-    const currentFiles = formData.files as File[] || [];
+  const handleRemoveFile = (fieldName: string, indexToRemove: number) => {
+    const currentFiles = formData[fieldName] as File[] || [];
     const updatedFiles = currentFiles.filter((_, index) => index !== indexToRemove);
-    setFormData((prev) => ({ ...prev, files: updatedFiles }));
+    setFormData(prev => ({ ...prev, [fieldName]: updatedFiles }));
   };
 
   // Navigation entre les étapes
   const goToNextStep = () => {
-    // Vérifier si l'étape actuelle est valide avant de continuer
+    console.log("Tentative de passage au step suivant, step actuel:", currentStep); // Debug
+
     if (currentStep === 0) {
-      // À l'étape 0, on valide seulement la sélection du service
-      if (!formData.serviceId) {
+      if (!formData.service_id) {
         alert("Veuillez sélectionner un service avant de continuer.");
         return;
       }
+      console.log("Passage au step 1, service sélectionné:", formData.service_id); // Debug
       setCurrentStep(1);
       return;
     }
 
+    // Valider les champs de l'étape actuelle
     const currentStepFields = formFields.filter(field => field.step === currentStep);
+    console.log("Validation step", currentStep, "champs:", currentStepFields); // Debug
 
     let isValid = true;
+
     for (const field of currentStepFields) {
       if (field.is_required && !formData[field.name]) {
+        console.log("Champ manquant:", field.name); // Debug
         isValid = false;
         break;
       }
     }
 
     if (isValid) {
-      setCurrentStep(prev => Math.min(prev + 1, totalSteps));
-      // Scroll en haut du formulaire quand on change d'étape
+      const nextStep = Math.min(currentStep + 1, totalSteps - 1);
+      console.log("Passage au step", nextStep); // Debug
+      setCurrentStep(nextStep);
       if (formRef.current) {
         formRef.current.scrollTop = 0;
       }
@@ -416,7 +654,6 @@ export default function ServiceForm() {
 
   const goToPreviousStep = () => {
     setCurrentStep(prev => Math.max(prev - 1, 0));
-    // Scroll en haut du formulaire quand on change d'étape
     if (formRef.current) {
       formRef.current.scrollTop = 0;
     }
@@ -426,80 +663,132 @@ export default function ServiceForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Seulement traiter la soumission si l'utilisateur a explicitement cliqué sur le bouton
     if (hasInitiatedSubmit) {
       try {
         setIsSubmitting(true);
-        // Ici, vous feriez normalement une requête API pour envoyer les données
-        console.log("Données soumises:", formData);
 
-        // Simuler un délai de traitement
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+        // Préparer les données pour l'API
+        const orderData = {
+          service_id: parseInt(formData.service_id as string),
+          form_data: formData,
+          // Les fichiers et audio seront traités séparément
+        };
 
-        // Rediriger vers la page de connexion/inscription
+        console.log("Données de commande à soumettre:", orderData);
+
+        // Simuler l'appel API
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Redirection vers la page d'authentification
         router.push("/auth");
       } catch (error) {
         console.error("Erreur lors de la soumission:", error);
-        // Réinitialiser l'état pour permettre une autre tentative
         setHasInitiatedSubmit(false);
         setIsSubmitting(false);
       }
-    } else {
-      console.log("Tentative de soumission non initiée par l'utilisateur - ignorée");
-      // Ne pas traiter la soumission si elle n'a pas été initiée par l'utilisateur
     }
   };
 
-  // Fonction explicite pour gérer le clic sur le bouton d'envoi
   const handleSubmitButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault(); // Empêcher le comportement par défaut
-
-    console.log("Bouton d'envoi cliqué intentionnellement");
+    e.preventDefault();
     setHasInitiatedSubmit(true);
 
-    // Soumettre le formulaire caché
     const hiddenForm = document.getElementById('hiddenForm') as HTMLFormElement;
     if (hiddenForm) {
       hiddenForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-    } else {
-      console.error("Formulaire caché non trouvé");
     }
   };
 
-  // Classe commune pour les champs de formulaire
+  // Classes CSS
   const inputClass = "w-full p-3 bg-gray-200 text-gray-700 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-[#062C57]";
   const labelClass = "mb-1 text-sm text-gray-700";
 
   // Rendu des champs pour l'étape courante
   const renderCurrentStepFields = () => {
-    // Étape 0: sélection du service
+    // Step 0: Sélection du service
     if (currentStep === 0) {
       return (
         <motion.div
           initial="hidden"
           animate="visible"
           variants={itemVariants}
+          className="space-y-4"
         >
+          <div className={labelClass}>Choisissez un service</div>
           <select
-            name="serviceId"
-            value={formData.serviceId as string}
+            name="service_id"
+            value={formData.service_id as string || ""}
             onChange={handleChange}
             className={inputClass}
             required
           >
-            <option value="">Sélectionnez un service</option>
+            <option value="">-- Sélectionnez un service --</option>
             {services.map((service) => (
               <option key={service.id} value={service.id}>
-                {service.name}
+                {service.name} {service.price && `(${service.price}€)`}
               </option>
             ))}
           </select>
+
+          {/* Afficher les détails du service sélectionné */}
+          {formData.service_id && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="mt-4 p-4 bg-gray-100 rounded-md"
+            >
+              {(() => {
+                const selectedService = services.find(s => s.id === parseInt(formData.service_id as string));
+                return selectedService ? (
+                  <div>
+                    <h3 className="font-semibold text-[#062C57]">{selectedService.name}</h3>
+                    <p className="text-gray-600 mt-1">{selectedService.description}</p>
+                    {selectedService.price && (
+                      <p className="text-[#1EB1D1] font-semibold mt-2">Prix: {selectedService.price}€</p>
+                    )}
+                    <p className="text-sm text-gray-500 mt-1">
+                      Catégorie: {selectedService.category?.name}
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+            </motion.div>
+          )}
         </motion.div>
       );
     }
 
-    // Filtrer les champs pour l'étape courante
+    // Autres steps: afficher les champs correspondants
+    if (isLoadingFields) {
+      return (
+        <motion.div
+          className="flex justify-center items-center py-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1EB1D1] mx-auto"></div>
+            <p className="mt-2 text-gray-600">Chargement des champs...</p>
+          </div>
+        </motion.div>
+      );
+    }
+
     const currentStepFields = formFields.filter(field => field.step === currentStep);
+
+    console.log(`Step ${currentStep}, champs trouvés:`, currentStepFields); // Debug
+
+    if (currentStepFields.length === 0) {
+      return (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center py-8 text-gray-500"
+        >
+          Aucun champ disponible pour cette étape. (Step {currentStep})
+        </motion.div>
+      );
+    }
 
     return (
       <motion.div
@@ -507,7 +796,7 @@ export default function ServiceForm() {
         initial="hidden"
         animate="visible"
         exit="exit"
-        className="space-y-4"
+        className="space-y-6"
       >
         {currentStepFields.map((field, index) => (
           <motion.div
@@ -516,141 +805,180 @@ export default function ServiceForm() {
             custom={index}
             className="mb-4"
           >
+            <div className={labelClass}>
+              {field.label} {field.is_required && <span className="text-red-500">*</span>}
+            </div>
+
+            {/* Champ texte */}
             {field.type === "text" && (
-              <>
-                <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
-                <input
-                  type={field.name === "email" ? "email" : "text"}
-                  name={field.name}
-                  value={formData[field.name] as string || ""}
-                  onChange={handleChange}
-                  placeholder={field.label}
-                  className={`${inputClass} h-10`}
-                  required={field.is_required}
-                />
-              </>
+              <input
+                type="text"
+                name={field.name}
+                value={formData[field.name] as string || ""}
+                onChange={handleChange}
+                placeholder={field.label}
+                className={inputClass}
+                required={field.is_required}
+              />
             )}
 
+            {/* Champ email */}
+            {field.type === "email" && (
+              <input
+                type="email"
+                name={field.name}
+                value={formData[field.name] as string || ""}
+                onChange={handleChange}
+                placeholder={field.label}
+                className={inputClass}
+                required={field.is_required}
+              />
+            )}
+
+            {/* Champ textarea */}
             {field.type === "textarea" && (
-              <>
-                <div className={labelClass}>
-                  {field.label} {field.is_required && <span className="text-red-500">*</span>}
-                </div>
-                <textarea
-                  name={field.name}
-                  value={formData[field.name] as string || ""}
-                  onChange={handleChange}
-                  placeholder="Décrivez votre projet, besoins et attentes..."
-                  className={`${inputClass} min-h-32 resize-vertical`}
-                  required={field.is_required}
-                />
-              </>
+              <textarea
+                name={field.name}
+                value={formData[field.name] as string || ""}
+                onChange={handleChange}
+                placeholder={field.label}
+                className={`${inputClass} min-h-32 resize-vertical`}
+                required={field.is_required}
+              />
             )}
 
+            {/* Champ number */}
             {field.type === "number" && (
-              <>
-                <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
+              <input
+                type="number"
+                name={field.name}
+                value={formData[field.name] as string || ""}
+                onChange={handleChange}
+                placeholder={field.label}
+                className={inputClass}
+                required={field.is_required}
+              />
+            )}
+
+            {/* Champ date */}
+            {field.type === "date" && (
+              <input
+                type="date"
+                name={field.name}
+                value={formData[field.name] as string || ""}
+                onChange={handleChange}
+                className={inputClass}
+                required={field.is_required}
+              />
+            )}
+
+            {/* Champ select */}
+            {field.type === "select" && field.options && (
+              <select
+                name={field.name}
+                value={formData[field.name] as string || ""}
+                onChange={handleChange}
+                className={inputClass}
+                required={field.is_required}
+              >
+                <option value="">-- Sélectionnez une option --</option>
+                {field.options.map((option, idx) => (
+                  <option key={idx} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* Champ checkbox */}
+            {field.type === "checkbox" && field.options && (
+              <div className="space-y-2 bg-gray-200 p-3 rounded-md">
+                {field.options.map((option, idx) => (
+                  <motion.div
+                    key={idx}
+                    className="flex items-center"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                  >
+                    <input
+                      type="checkbox"
+                      id={`${field.name}-${idx}`}
+                      name={field.name}
+                      value={option}
+                      checked={(formData[field.name] as string[] || []).includes(option)}
+                      onChange={handleChange}
+                      className="mr-2 focus:ring-[#062C57]"
+                    />
+                    <label htmlFor={`${field.name}-${idx}`} className="text-gray-700">
+                      {option}
+                    </label>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Champ radio */}
+            {field.type === "radio" && field.options && (
+              <div className="space-y-2 bg-gray-200 p-3 rounded-md">
+                {field.options.map((option, idx) => (
+                  <motion.div
+                    key={idx}
+                    className="flex items-center"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                  >
+                    <input
+                      type="radio"
+                      id={`${field.name}-${idx}`}
+                      name={field.name}
+                      value={option}
+                      checked={(formData[field.name] as string) === option}
+                      onChange={handleChange}
+                      className="mr-2 focus:ring-[#062C57]"
+                      required={field.is_required}
+                    />
+                    <label htmlFor={`${field.name}-${idx}`} className="text-gray-700">
+                      {option}
+                    </label>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Champ audio */}
+            {field.type === "file_audio" && (
+              <div>
+                <AudioRecorder onChange={handleAudioChange} />
+              </div>
+            )}
+
+            {/* Champ fichiers documents */}
+            {field.type === "files_document" && (
+              <div>
                 <input
-                  type="number"
+                  type="file"
                   name={field.name}
-                  value={formData[field.name] as string || ""}
-                  onChange={handleChange}
-                  placeholder={field.label}
-                  className={`${inputClass} h-10`}
+                  onChange={(e) => handleFileChange(e, field.name)}
+                  multiple
+                  accept=".pdf,.doc,.docx,.txt,.rtf"
+                  className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-[#1EB1D1] file:text-white hover:file:bg-[#062C57] file:cursor-pointer`}
                   required={field.is_required}
                 />
-              </>
-            )}
-
-            {field.type === "checkbox" && field.options && (
-              <>
-                <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
-                <div className="space-y-1 bg-gray-200 p-3 rounded-md">
-                  {JSON.parse(field.options).map((option: string, idx: number) => (
-                    <motion.div
-                      key={idx}
-                      className="flex items-center"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                    >
-                      <input
-                        type="checkbox"
-                        id={`${field.name}-${idx}`}
-                        name={field.name}
-                        value={option}
-                        checked={(formData[field.name] as string[] || []).includes(option)}
-                        onChange={handleChange}
-                        className="mr-2 focus:ring-[#062C57]"
-                        required={field.is_required && idx === 0} // Seul le premier est marqué comme required
-                      />
-                      <label htmlFor={`${field.name}-${idx}`} className="text-gray-700">{option}</label>
-                    </motion.div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {field.type === "radio" && field.options && (
-              <>
-                <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
-                <div className="space-y-1 bg-gray-200 p-3 rounded-md">
-                  {JSON.parse(field.options).map((option: string, idx: number) => (
-                    <motion.div
-                      key={idx}
-                      className="flex items-center"
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                    >
-                      <input
-                        type="radio"
-                        id={`${field.name}-${idx}`}
-                        name={field.name}
-                        value={option}
-                        checked={(formData[field.name] as string) === option}
-                        onChange={handleChange}
-                        className="mr-2 focus:ring-[#062C57]"
-                        required={field.is_required}
-                      />
-                      <label htmlFor={`${field.name}-${idx}`} className="text-gray-700">{option}</label>
-                    </motion.div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {field.type === "audio" && (
-              <>
-                <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
-                <AudioRecorder onChange={handleAudioChange} />
-              </>
-            )}
-
-            {field.type === "files" && (
-              <>
-                <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
-                <div className="mb-2">
-                  <input
-                    type="file"
-                    name="files"
-                    onChange={handleFileChange}
-                    multiple // Permet la sélection multiple de fichiers
-                    className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-[#1EB1D1] file:text-white hover:file:bg-[#062C57] file:cursor-pointer`}
-                    required={field.is_required}
-                  />
-                </div>
-                {/* Afficher la liste des fichiers sélectionnés */}
-                {formData.files && (formData.files as File[]).length > 0 && (
+                {/* Afficher les fichiers sélectionnés */}
+                {formData[field.name] && (formData[field.name] as File[]).length > 0 && (
                   <motion.div
                     className="mt-2 bg-gray-100 p-3 rounded-md"
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     transition={{ duration: 0.3 }}
                   >
-                    <p className="text-sm font-semibold text-gray-700">Fichiers sélectionnés ({(formData.files as File[]).length}):</p>
+                    <p className="text-sm font-semibold text-gray-700">
+                      Documents sélectionnés ({(formData[field.name] as File[]).length}):
+                    </p>
                     <ul className="mt-2 max-h-40 overflow-y-auto">
-                      {(formData.files as File[]).map((file, idx) => (
+                      {(formData[field.name] as File[]).map((file, idx) => (
                         <motion.li
                           key={idx}
                           className="flex justify-between items-center py-1 border-b border-gray-200 last:border-0"
@@ -659,26 +987,77 @@ export default function ServiceForm() {
                           transition={{ delay: idx * 0.05 }}
                         >
                           <div className="text-sm text-gray-700 truncate max-w-[80%]">
-                            {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                            📄 {file.name} ({(file.size / 1024).toFixed(1)} KB)
                           </div>
                           <motion.button
                             type="button"
-                            onClick={() => handleRemoveFile(idx)}
+                            onClick={() => handleRemoveFile(field.name, idx)}
                             className="text-red-500 hover:text-red-700 text-sm p-1"
                             title="Supprimer ce fichier"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.95 }}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M18 6L6 18M6 6l12 12"/>
-                            </svg>
+                            ✕
                           </motion.button>
                         </motion.li>
                       ))}
                     </ul>
                   </motion.div>
                 )}
-              </>
+              </div>
+            )}
+
+            {/* Champ fichiers images */}
+            {field.type === "files_image" && (
+              <div>
+                <input
+                  type="file"
+                  name={field.name}
+                  onChange={(e) => handleFileChange(e, field.name)}
+                  multiple
+                  accept="image/*"
+                  className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-[#1EB1D1] file:text-white hover:file:bg-[#062C57] file:cursor-pointer`}
+                  required={field.is_required}
+                />
+                {/* Afficher les images sélectionnées */}
+                {formData[field.name] && (formData[field.name] as File[]).length > 0 && (
+                  <motion.div
+                    className="mt-2 bg-gray-100 p-3 rounded-md"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <p className="text-sm font-semibold text-gray-700">
+                      Images sélectionnées ({(formData[field.name] as File[]).length}):
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                      {(formData[field.name] as File[]).map((file, idx) => (
+                        <motion.div
+                          key={idx}
+                          className="relative group"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: idx * 0.05 }}
+                        >
+                          <div className="aspect-square bg-gray-200 rounded-md flex items-center justify-center text-xs text-gray-600 p-2">
+                            🖼️ {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
+                          </div>
+                          <motion.button
+                            type="button"
+                            onClick={() => handleRemoveFile(field.name, idx)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Supprimer cette image"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            ✕
+                          </motion.button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </div>
             )}
           </motion.div>
         ))}
@@ -686,9 +1065,9 @@ export default function ServiceForm() {
     );
   };
 
-  // Rendu des boutons de navigation avec des flèches dans des cercles
+  // Rendu des boutons de navigation
   const renderNavigationButtons = () => {
-    const isLastStep = currentStep === totalSteps - 1; // Dernière étape
+    const isLastStep = currentStep === totalSteps - 1;
 
     return (
       <motion.div
@@ -731,11 +1110,11 @@ export default function ServiceForm() {
             type="button"
             onClick={goToNextStep}
             className={`ml-auto h-12 w-12 rounded-full flex items-center justify-center transition-colors ${
-              (currentStep === 0 && !formData.serviceId)
+              (currentStep === 0 && !formData.service_id)
                 ? 'bg-gray-200 cursor-not-allowed'
                 : 'bg-[#1EB1D1] hover:bg-[#062C57]'
             }`}
-            disabled={currentStep === 0 && !formData.serviceId}
+            disabled={currentStep === 0 && !formData.service_id}
             aria-label="Suivant"
             variants={buttonVariants}
             initial="hidden"
@@ -760,11 +1139,10 @@ export default function ServiceForm() {
           </motion.button>
         ) : (
           <motion.button
-            ref={formSubmitButtonRef}
-            type="button" // Changé en type="button" pour gérer manuellement la soumission
+            type="button"
             disabled={isSubmitting}
             className="ml-auto px-6 py-2 bg-[#1EB1D1] text-white rounded-md hover:bg-[#062C57] transition flex items-center"
-            onClick={handleSubmitButtonClick} // Utiliser notre gestionnaire personnalisé
+            onClick={handleSubmitButtonClick}
             variants={buttonVariants}
             initial="hidden"
             animate="visible"
@@ -777,10 +1155,10 @@ export default function ServiceForm() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Envoi en cours...
+                Création de la commande...
               </span>
             ) : (
-              "Envoyer"
+              "Créer ma commande"
             )}
           </motion.button>
         )}
@@ -790,6 +1168,8 @@ export default function ServiceForm() {
 
   // Indicateur d'étapes
   const renderStepIndicator = () => {
+    const stepTitles = ["Service", "Informations", "Projet", "Médias"];
+
     return (
       <motion.div
         className="flex justify-center mb-8"
@@ -804,7 +1184,7 @@ export default function ServiceForm() {
             variants={indicatorItemVariants}
           >
             <motion.div
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              className={`relative w-10 h-10 rounded-full flex items-center justify-center ${
                 index < currentStep
                   ? 'bg-[#062C57] text-white'
                   : index === currentStep
@@ -815,14 +1195,18 @@ export default function ServiceForm() {
               transition={{ type: "spring", stiffness: 400, damping: 10 }}
             >
               {index + 1}
+              {/* Tooltip */}
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                {stepTitles[index]}
+              </div>
             </motion.div>
             {index < totalSteps - 1 && (
               <motion.div
-                className={`h-1 w-10 ${
+                className={`h-1 w-8 ${
                   index < currentStep ? 'bg-[#062C57]' : 'bg-gray-200'
                 }`}
                 initial={{ width: 0 }}
-                animate={{ width: "40px" }}
+                animate={{ width: "32px" }}
                 transition={{ duration: 0.3, delay: 0.2 + index * 0.1 }}
               ></motion.div>
             )}
@@ -832,35 +1216,17 @@ export default function ServiceForm() {
     );
   };
 
-  // Effet pour désactiver les redirections automatiques pendant les étapes
+  // Effet pour réinitialiser la soumission
   useEffect(() => {
-    // Réinitialiser l'indicateur de soumission lorsque l'étape change
     if (hasInitiatedSubmit && currentStep !== totalSteps - 1) {
       setHasInitiatedSubmit(false);
       setIsSubmitting(false);
     }
   }, [currentStep, hasInitiatedSubmit, totalSteps]);
 
-  // Désactivation du comportement de soumission automatique du formulaire
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Empêcher la navigation non intentionnelle pendant l'étape des fichiers/audio (étape 3)
-      if (currentStep === totalSteps - 1 && !hasInitiatedSubmit) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [currentStep, totalSteps, hasInitiatedSubmit]);
-
   return (
     <div className="flex flex-col md:flex-row h-screen bg-white overflow-hidden">
-      {/* Image de gauche - fixe même en cas de défilement */}
+      {/* Image de gauche */}
       <div className="hidden md:block md:w-1/2 relative">
         <motion.div
           className="fixed w-1/2 h-screen"
@@ -875,7 +1241,6 @@ export default function ServiceForm() {
             style={{ objectFit: "cover" }}
             priority
           />
-          {/* Overlay gradué qui disparaît progressivement */}
           <motion.div
             className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent"
             initial={{ opacity: 0.7 }}
@@ -885,7 +1250,7 @@ export default function ServiceForm() {
         </motion.div>
       </div>
 
-      {/* Image mobile (uniquement visible sur les petits écrans) */}
+      {/* Image mobile */}
       <div className="md:hidden w-full h-48 relative">
         <Image
           src="/images/welcome.jpg"
@@ -896,7 +1261,7 @@ export default function ServiceForm() {
         />
       </div>
 
-      {/* Formulaire à droite avec défilement */}
+      {/* Formulaire à droite */}
       <motion.div
         ref={formRef}
         className="w-full md:w-1/2 flex flex-col p-8 overflow-y-auto"
@@ -930,16 +1295,12 @@ export default function ServiceForm() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          Dites-nous en plus !
+          Créez votre commande
         </motion.h1>
 
         {/* Indicateur d'étapes */}
-        {currentStep > 0 && renderStepIndicator()}
+        {renderStepIndicator()}
 
-        {/*
-          Utiliser un div au lieu d'un form ici pour éviter la soumission accidentelle
-          La gestion de soumission est faite manuellement via le bouton d'envoi
-        */}
         <div className="flex-1 flex flex-col">
           {/* Titre de l'étape actuelle */}
           <AnimatePresence mode="wait">
@@ -951,10 +1312,10 @@ export default function ServiceForm() {
               animate="animate"
               exit="exit"
             >
-              {currentStep === 0 && "Sélectionnez un service"}
-              {currentStep === 1 && "Vos informations"}
-              {currentStep === 2 && "Détails du projet"}
-              {currentStep === 3 && "Fichiers additionnels"}
+              {currentStep === 0 && "Sélectionnez votre service"}
+              {currentStep === 1 && "Vos informations personnelles"}
+              {currentStep === 2 && "Détails de votre projet"}
+              {currentStep === 3 && "Fichiers et médias"}
             </motion.h2>
           </AnimatePresence>
 
@@ -975,7 +1336,7 @@ export default function ServiceForm() {
           {/* Boutons de navigation */}
           {renderNavigationButtons()}
 
-          {/* Formulaire invisible pour gérer la soumission réelle */}
+          {/* Formulaire caché pour la soumission */}
           <form
             onSubmit={handleSubmit}
             style={{ display: "none" }}
