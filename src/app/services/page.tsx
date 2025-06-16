@@ -7,20 +7,6 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Import dynamique de l'éditeur de texte riche pour éviter les erreurs de SSR
-const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), {
-  ssr: false,
-  loading: () => (
-    <motion.p
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
-      Chargement de l'éditeur...
-    </motion.p>
-  ),
-});
-
 // Composant pour l'enregistrement audio
 const AudioRecorder = dynamic(() => import("@/components/AudioRecorder"), {
   ssr: false,
@@ -547,14 +533,17 @@ export default function ServiceForm() {
 
             {field.type === "textarea" && (
               <>
-                <div className={labelClass}>{field.label} {field.is_required && <span className="text-red-500">*</span>}</div>
-                <div className="min-h-32 bg-gray-200 rounded-md">
-                  <RichTextEditor
-                    initialValue={formData[field.name] as string || ""}
-                    onChange={(content: string) => handleRichTextChange(content, field.name)}
-                    className={inputClass}
-                  />
+                <div className={labelClass}>
+                  {field.label} {field.is_required && <span className="text-red-500">*</span>}
                 </div>
+                <textarea
+                  name={field.name}
+                  value={formData[field.name] as string || ""}
+                  onChange={handleChange}
+                  placeholder="Décrivez votre projet, besoins et attentes..."
+                  className={`${inputClass} min-h-32 resize-vertical`}
+                  required={field.is_required}
+                />
               </>
             )}
 
