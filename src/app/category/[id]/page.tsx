@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unescaped-entities */
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -178,10 +177,11 @@ export default function Home() {
           variants={logoVariants}
         >
           <Image
-            src="/images/logo_mts.png"
-            alt="Millennium Tech"
+            src={`http://localhost:8000/storage/${category?.cover_image}`}
+            alt={category?.name || ""}
             width={180}
             height={40}
+            className="object-contain"
           />
         </motion.div>
 
@@ -213,7 +213,7 @@ export default function Home() {
           whileTap="tap"
         >
           <Link
-            href="/services"
+            href={`/services?category=${categoryId}`}
             className="bg-[#1EB1D1] text-white font-semibold py-3 px-8 rounded-lg transition duration-300 inline-block"
           >
             Soumettre votre projet

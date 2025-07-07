@@ -54,7 +54,7 @@ export type FormFieldType =
   | 'radio'
   | 'files_document'
   | 'files_image'
-  | 'file_audio';
+  | 'files_audio';
 
 // ======= RESPONSES API =======
 

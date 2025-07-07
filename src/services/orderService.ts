@@ -23,14 +23,14 @@ export class OrderService {
         formData.append(`fields[${index}][value]`, field.value);
 
         if (field.file && (field.file instanceof File || field.file instanceof Blob)) {
-          formData.append(`fields[${index}][file]`, field.file);
+          formData.append(`fields[${index}][file][]`, field.file);
         }
       });
 
-      return await apiService.postFormData<OrderResponse>('/guest/order', formData);
+      return await apiService.postFormData<OrderResponse>('/orders', formData);
     } else {
       // Utiliser JSON pour les données textuelles
-      return await apiService.post<OrderResponse>('/guest/order', orderData);
+      return await apiService.post<OrderResponse>('/orders', orderData);
     }
   }
 }
