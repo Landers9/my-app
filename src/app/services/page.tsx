@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react/no-unescaped-entities */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
@@ -9,12 +9,11 @@ import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Imports des hooks et services
-import { useCategory } from '@/hooks/useCategory';
-import { useServicesByCategory } from '@/hooks/useServices';
-import { useServiceFormFields } from '@/hooks/useFormFields';
-import { useOrder } from '@/hooks/useOrder';
-import { ServiceService } from '@/services/serviceService';
-import { FormData, OrderRequest } from '@/types/models';
+import { useCompany } from '@/hooks/useCompany';
+import { useFormFields } from '@/hooks/useFormFields';
+import { useProject } from '@/hooks/useProject';
+import { CompanyService } from '@/services/companyService';
+import { FormData, ProjectRequest, ProjectField } from '@/types/models';
 
 // Composant pour l'enregistrement audio
 const AudioRecorder = dynamic(() => import("@/components/AudioRecorder"), {
@@ -30,7 +29,7 @@ const AudioRecorder = dynamic(() => import("@/components/AudioRecorder"), {
   ),
 });
 
-// Animations variants
+// Animations variants (gardées identiques)
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -140,16 +139,15 @@ export default function ServiceForm() {
   const [isLoaded, setIsLoaded] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
-  // Récupérer l'ID de catégorie depuis les paramètres URL ou utiliser 1 par défaut
-  const categoryId = parseInt(searchParams.get('category') || '1');
+  // Récupérer l'ID de company depuis les paramètres URL
+  const companyId = searchParams.get('company') || "0197e484-612e-7b7f-ac64-abff96823798";
 
   // Hooks pour récupérer les données
-  const { category } = useCategory(categoryId);
-  const { services } = useServicesByCategory(categoryId);
-  const { formFields, isLoading: fieldsLoading, getFieldsByStep } = useServiceFormFields(
-    formData.service_id ? parseInt(formData.service_id as string) : 0
+  const { company, services, isLoading: companyLoading } = useCompany(companyId);
+  const { formFields, isLoading: fieldsLoading, getFieldsByStep } = useFormFields(
+    formData.company_service_id as string || ''
   );
-  const { createOrder, isSubmitting } = useOrder();
+  const { createProject, isSubmitting } = useProject();
 
   useEffect(() => {
     setIsLoaded(true);
@@ -209,7 +207,7 @@ export default function ServiceForm() {
   // Navigation entre les étapes
   const goToNextStep = () => {
     if (currentStep === 0) {
-      if (!formData.service_id) {
+      if (!formData.company_service_id) {
         alert("Veuillez sélectionner un service avant de continuer.");
         return;
       }
@@ -250,20 +248,20 @@ export default function ServiceForm() {
   const handleSubmitButtonClick = async () => {
     try {
       // Préparer les données selon le format attendu par l'API
-      const orderFields = formFields.map(field => {
+      const projectFields: ProjectField[] = formFields.map(field => {
         let value = '';
         let file: string | File | Blob = '';
 
         const fieldValue = formData[field.name];
 
-        // Gestion spéciale pour les champs audio (enregistrement en direct)
-        if (field.type === 'files_audio') {
+        // Gestion spéciale pour les champs audio
+        if (field.form_field_enumeration?.name === 'files_audio') {
           if (formData.audio_message instanceof Blob) {
             file = formData.audio_message;
           }
         }
-        // Gestion des fichiers uploadés (documents et images)
-        else if ((field.type === 'files_document' || field.type === 'files_image') && Array.isArray(fieldValue)) {
+        // Gestion des fichiers uploadés
+        else if ((field.form_field_enumeration?.name === 'files_document' || field.form_field_enumeration?.name === 'files_image') && Array.isArray(fieldValue)) {
           if (fieldValue.length > 0 && fieldValue[0] instanceof File) {
             file = fieldValue[0];
           }
@@ -282,15 +280,15 @@ export default function ServiceForm() {
         };
       });
 
-      const orderData: OrderRequest = {
-        service_id: parseInt(formData.service_id as string),
-        fields: orderFields
+      const projectData: ProjectRequest = {
+        company_service_id: formData.company_service_id as string,
+        fields: projectFields
       };
 
-      await createOrder(orderData);
+      await createProject(projectData);
       router.push("/confirmation");
     } catch (error) {
-      alert("Erreur lors de la création de la commande. Veuillez réessayer.");
+      alert("Erreur lors de la création du projet. Veuillez réessayer.");
     }
   };
 
@@ -326,38 +324,38 @@ export default function ServiceForm() {
         >
           <div className={labelClass}>Choisissez un service</div>
           <select
-            name="service_id"
-            value={formData.service_id as string || ""}
+            name="company_service_id"
+            value={formData.company_service_id as string || ""}
             onChange={handleChange}
             className={inputClass}
             required
           >
             <option value="">-- Sélectionnez un service --</option>
-            {services
-              .filter(service => ServiceService.isServiceActive(service))
+            {(services || [])
+              .filter(service => CompanyService.isServiceActive(service))
               .map((service) => (
               <option key={service.id} value={service.id}>
-                {service.name} {service.price && `(${ServiceService.formatPrice(service.price)})`}
+                {service.name} {service.price && `(${CompanyService.formatPrice(service.price)})`}
               </option>
             ))}
           </select>
 
           {/* Afficher les détails du service sélectionné */}
-          {formData.service_id && (
+          {formData.company_service_id && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               className="mt-4 p-4 bg-gray-100 rounded-md"
             >
               {(() => {
-                const selectedService = services.find(s => s.id === parseInt(formData.service_id as string));
+                const selectedService = (services || []).find(s => s.id === formData.company_service_id);
                 return selectedService ? (
                   <div>
                     <h3 className="font-semibold text-[#062C57]">{selectedService.name}</h3>
                     <p className="text-gray-600 mt-1">{selectedService.description}</p>
                     {selectedService.price && (
                       <p className="text-[#1EB1D1] font-semibold mt-2">
-                        Prix: {ServiceService.formatPrice(selectedService.price)}
+                        Prix: {CompanyService.formatPrice(selectedService.price)}
                       </p>
                     )}
                   </div>
@@ -409,6 +407,7 @@ export default function ServiceForm() {
       >
         {currentStepFields.map((field, index) => {
           const fieldOptions = parseOptions(field.options);
+          const fieldType = field.form_field_enumeration?.name;
 
           return (
             <motion.div
@@ -422,7 +421,7 @@ export default function ServiceForm() {
               </div>
 
               {/* Champ texte */}
-              {field.type === "text" && (
+              {fieldType === "text" && (
                 <input
                   type="text"
                   name={field.name}
@@ -435,7 +434,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ email */}
-              {field.type === "email" && (
+              {fieldType === "email" && (
                 <input
                   type="email"
                   name={field.name}
@@ -448,7 +447,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ textarea */}
-              {field.type === "textarea" && (
+              {fieldType === "textarea" && (
                 <textarea
                   name={field.name}
                   value={formData[field.name] as string || ""}
@@ -460,7 +459,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ number */}
-              {field.type === "number" && (
+              {fieldType === "number" && (
                 <input
                   type="number"
                   name={field.name}
@@ -473,7 +472,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ date */}
-              {field.type === "date" && (
+              {fieldType === "date" && (
                 <input
                   type="date"
                   name={field.name}
@@ -485,7 +484,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ select */}
-              {field.type === "select" && fieldOptions.length > 0 && (
+              {fieldType === "select" && fieldOptions.length > 0 && (
                 <select
                   name={field.name}
                   value={formData[field.name] as string || ""}
@@ -503,7 +502,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ checkbox */}
-              {field.type === "checkbox" && fieldOptions.length > 0 && (
+              {fieldType === "checkbox" && fieldOptions.length > 0 && (
                 <div className="space-y-2 bg-gray-200 p-3 rounded-md">
                   {fieldOptions.map((option, idx) => (
                     <motion.div
@@ -531,7 +530,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ radio */}
-              {field.type === "radio" && fieldOptions.length > 0 && (
+              {fieldType === "radio" && fieldOptions.length > 0 && (
                 <div className="space-y-2 bg-gray-200 p-3 rounded-md">
                   {fieldOptions.map((option, idx) => (
                     <motion.div
@@ -560,7 +559,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ fichiers documents */}
-              {field.type === "files_document" && (
+              {fieldType === "files_document" && (
                 <div>
                   <input
                     type="file"
@@ -612,7 +611,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ fichiers images */}
-              {field.type === "files_image" && (
+              {fieldType === "files_image" && (
                 <div>
                   <input
                     type="file"
@@ -664,7 +663,7 @@ export default function ServiceForm() {
               )}
 
               {/* Champ enregistrement audio */}
-              {field.type === "files_audio" && (
+              {fieldType === "files_audio" && (
                 <div>
                   <AudioRecorder onChange={handleAudioChange} />
                   {formData.audio_message && (
@@ -680,9 +679,9 @@ export default function ServiceForm() {
               )}
 
               {/* Affichage d'erreur pour les types non supportés */}
-              {!['text', 'email', 'textarea', 'number', 'date', 'select', 'checkbox', 'radio', 'files_document', 'files_image', 'files_audio'].includes(field.type) && (
+              {!['text', 'email', 'textarea', 'number', 'date', 'select', 'checkbox', 'radio', 'files_document', 'files_image', 'files_audio'].includes(fieldType || '') && (
                 <div className="text-red-500 text-sm">
-                  Type de champ non supporté: {field.type}
+                  Type de champ non supporté: {fieldType}
                 </div>
               )}
             </motion.div>
@@ -737,11 +736,11 @@ export default function ServiceForm() {
             type="button"
             onClick={goToNextStep}
             className={`ml-auto h-12 w-12 rounded-full flex items-center justify-center transition-colors ${
-              (currentStep === 0 && !formData.service_id)
+              (currentStep === 0 && !formData.company_service_id)
                 ? 'bg-gray-200 cursor-not-allowed'
                 : 'bg-[#1EB1D1] hover:bg-[#062C57]'
             }`}
-            disabled={currentStep === 0 && !formData.service_id}
+            disabled={currentStep === 0 && !formData.company_service_id}
             aria-label="Suivant"
             variants={buttonVariants}
             initial="hidden"
@@ -782,10 +781,10 @@ export default function ServiceForm() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Création de la commande...
+                Création du projet...
               </span>
             ) : (
-              "Créer ma commande"
+              "Créer mon projet"
             )}
           </motion.button>
         )}
@@ -839,7 +838,7 @@ export default function ServiceForm() {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-white overflow-hidden">
-      {/* Image de gauche - reste toujours l'image des mains qui se serrent */}
+      {/* Image de gauche - utilise l'image de couverture de la company */}
       <div className="hidden md:block md:w-1/2 relative">
         <motion.div
           className="fixed w-1/2 h-screen"
@@ -848,8 +847,8 @@ export default function ServiceForm() {
           transition={{ duration: 0.8 }}
         >
           <Image
-            src="/images/welcome.jpg"
-            alt="Poignée de main entre un humain et un robot"
+            src={company?.cover_image || "/images/welcome.jpg"}
+            alt={company?.name || "Image de couverture"}
             fill
             style={{ objectFit: "cover" }}
             priority
@@ -863,11 +862,11 @@ export default function ServiceForm() {
         </motion.div>
       </div>
 
-      {/* Image mobile - aussi l'image des mains */}
+      {/* Image mobile - utilise aussi l'image de couverture de la company */}
       <div className="md:hidden w-full h-48 relative">
         <Image
-          src="/images/welcome.jpg"
-          alt="Poignée de main entre un humain et un robot"
+          src={company?.cover_image || "/images/welcome.jpg"}
+          alt={company?.name || "Image de couverture"}
           fill
           style={{ objectFit: "cover" }}
           priority
@@ -883,7 +882,7 @@ export default function ServiceForm() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        {/* Logo */}
+        {/* Logo de la company */}
         <motion.div
           className="mb-6 self-center"
           initial={{ y: -20, opacity: 0 }}
@@ -895,10 +894,11 @@ export default function ServiceForm() {
           }}
         >
           <Image
-            src="/images/logo_mts.png"
-            alt="Millennium Tech"
+            src={company?.logo || "/images/logo_mts.png"}
+            alt={company?.name || "Logo"}
             width={180}
             height={40}
+            className="object-contain"
           />
         </motion.div>
 
@@ -908,7 +908,7 @@ export default function ServiceForm() {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          Créez votre commande
+          Créez votre projet
         </motion.h1>
 
         {/* Indicateur d'étapes */}

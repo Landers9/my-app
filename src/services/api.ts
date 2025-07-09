@@ -2,7 +2,8 @@
 
 import { ApiError } from '@/types/models';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+// NEXT_PUBLIC_API_URL contient déjà /api/v1
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://appcommands-staging.milleniumtechs.com/api/v1';
 
 class ApiService {
   private baseUrl: string;
@@ -27,7 +28,9 @@ class ApiService {
   }
 
   async get<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -38,9 +41,29 @@ class ApiService {
     return this.handleResponse<T>(response);
   }
 
-  async post<T>(endpoint: string, data: unknown): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+  async post<T>(endpoint: string, data: unknown, options?: { headers?: Record<string, string> }): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(options?.headers || {})
+    };
+
+    const response = await fetch(url, {
       method: 'POST',
+      headers,
+      body: data instanceof FormData ? data : JSON.stringify(data),
+    });
+
+    return this.handleResponse<T>(response);
+  }
+
+  async put<T>(endpoint: string, data: unknown): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    const response = await fetch(url, {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -52,8 +75,13 @@ class ApiService {
   }
 
   async postFormData<T>(endpoint: string, formData: FormData): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    const response = await fetch(url, {
       method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
       body: formData,
     });
 

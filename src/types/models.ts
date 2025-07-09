@@ -1,81 +1,62 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // types/models.ts
 
 // ======= MODELS DE BASE =======
 
-export interface Category {
-  id: number;
+export interface Company {
+  id: string; // UUID
   name: string;
-  description: string;
-  cover_image: string | null;
+  slug: string;
+  description: string | null;
+  logo: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
   slogan: string | null;
+  cover_image: string | null;
   created_at: string;
-  updated_at: string;
-  services?: Service[];
 }
 
 export interface Service {
-  id: number;
-  category_id: number;
+  id: string; // UUID
   name: string;
   description: string | null;
   price: number | null;
-  is_active: number; // 0 ou 1
-  created_at: string;
-  updated_at: string;
+  is_active: boolean;
 }
 
 export interface FormField {
-  id: number;
+  id: string; // UUID
   label: string;
   name: string;
-  type: FormFieldType;
-  options: string[] | null;
+  options: any | null;
   is_required: boolean;
   position: number;
   step: number;
-  created_at: string;
-  updated_at: string;
-  pivot?: {
-    service_id: number;
-    field_id: number;
+  form_field_enumeration: {
+    id: string;
+    name: string;
+    description: string;
+    type: string;
   };
 }
 
-// ======= TYPES =======
+// ======= REQUESTS =======
 
-export type FormFieldType =
-  | 'text'
-  | 'textarea'
-  | 'number'
-  | 'date'
-  | 'email'
-  | 'select'
-  | 'checkbox'
-  | 'radio'
-  | 'files_document'
-  | 'files_image'
-  | 'files_audio';
-
-// ======= RESPONSES API =======
-
-export interface ServiceFormFieldsResponse {
-  service_name: string;
-  form_fields: FormField[];
-}
-
-export interface OrderField {
+export interface ProjectField {
   value: string;
   file: string | File | Blob;
-  field_id: number;
+  field_id: string;
 }
 
-export interface OrderRequest {
-  service_id: number;
-  fields: OrderField[];
+export interface ProjectRequest {
+  company_service_id: string;
+  fields: ProjectField[];
 }
 
-export interface OrderResponse {
-  id?: number;
+export interface ProjectResponse {
+  id?: string;
   reference?: string;
   status?: string;
   message?: string;
@@ -87,6 +68,12 @@ export interface ApiError {
   message: string;
   status?: number;
   errors?: Record<string, string[]>;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  success: boolean;
 }
 
 export type FormData = {

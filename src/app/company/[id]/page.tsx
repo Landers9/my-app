@@ -6,24 +6,24 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 
 // Imports des services et hooks
-import { useCategory } from '@/hooks/useCategory';
+import { useCompany } from '@/hooks/useCompany';
 
 export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
   const params = useParams();
 
-  // Récupérer l'ID depuis les paramètres de route, utiliser 1 par défaut si pas d'ID
-  const categoryId = params.id ? parseInt(params.id as string) : 1;
+  // Récupérer l'ID depuis les paramètres de route, utiliser "0197e484-612e-7b7f-ac64-abff96823798" par défaut si pas d'ID
+  const companyId = (params.id as string) || "0197e484-612e-7b7f-ac64-abff96823798";
 
-  // Utilisation du hook pour récupérer la catégorie
-  const { category, isLoading } = useCategory(categoryId);
+  // Utilisation du hook pour récupérer la company
+  const { company, isLoading } = useCompany(companyId);
 
   useEffect(() => {
     // Déclencher les animations après le chargement de la page
-    if (!isLoading && category) {
+    if (!isLoading && company) {
       setIsLoaded(true);
     }
-  }, [isLoading, category]);
+  }, [isLoading, company]);
 
   // Fonction pour appliquer les couleurs au slogan
   const renderStyledSlogan = (slogan: string | null) => {
@@ -148,13 +148,12 @@ export default function Home() {
         variants={imageVariants}
       >
         <Image
-          src="/images/welcome.jpg"
-          alt="Poignée de main entre un humain et un robot"
+          src={company?.cover_image || "/images/welcome.jpg"}
+          alt={company?.name || ""}
           fill
           style={{ objectFit: 'cover' }}
           priority
         />
-
         {/* Overlay gradué qui disparaît progressivement */}
         <motion.div
           className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent"
@@ -177,15 +176,15 @@ export default function Home() {
           variants={logoVariants}
         >
           <Image
-            src={`http://localhost:8000/storage/${category?.cover_image}`}
-            alt={category?.name || ""}
+            src={company?.logo || "/images/default-logo.png"}
+            alt={company?.name || ""}
             width={180}
             height={40}
             className="object-contain"
           />
         </motion.div>
 
-        {/* Titre principal avec animations séquentielles - utilise le slogan de la catégorie */}
+        {/* Titre principal avec animations séquentielles - utilise le slogan de la company */}
         <div className="text-2xl md:text-3xl font-bold mb-6 text-center">
           <motion.div
             custom={0}
@@ -194,16 +193,16 @@ export default function Home() {
             animate={isLoaded ? "visible" : "hidden"}
             className="inline-block"
           >
-            {category?.slogan && renderStyledSlogan(category.slogan)}
+            {company?.slogan && renderStyledSlogan(company.slogan)}
           </motion.div>
         </div>
 
-        {/* Texte descriptif qui apparaît ligne par ligne - utilise la description de la catégorie */}
+        {/* Texte descriptif qui apparaît ligne par ligne - utilise la description de la company */}
         <motion.p
           className="text-sm md:text-base text-black mb-8 text-center max-w-lg"
           variants={itemVariants}
         >
-          {category?.description}
+          {company?.description}
         </motion.p>
 
         {/* Bouton d'action avec animation interactive */}
@@ -213,7 +212,7 @@ export default function Home() {
           whileTap="tap"
         >
           <Link
-            href={`/services?category=${categoryId}`}
+            href={`/services?company=${companyId}`}
             className="bg-[#1EB1D1] text-white font-semibold py-3 px-8 rounded-lg transition duration-300 inline-block"
           >
             Soumettre votre projet

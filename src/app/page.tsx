@@ -6,8 +6,8 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-  // Redirection automatique vers la catégorie 1
-  router.replace('/category/1');
+  // Redirection automatique vers la company 1
+  router.replace('/company/0197e484-612e-7b7f-ac64-abff96823798');
   }, [router]);
 
   // Affichage temporaire pendant la redirection

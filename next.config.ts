@@ -3,14 +3,15 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '8000',
+        protocol: 'https',
+        hostname: 'appcommands-staging.milleniumtechs.com',
+        port: '',
         pathname: '/storage/**',
       },
       {
-        protocol: 'https',
-        hostname: 'votre-domaine-production.com', // Pour la production
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8000',
         pathname: '/storage/**',
       },
     ],

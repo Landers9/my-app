@@ -1,23 +1,24 @@
 // services/formFieldService.ts
 
-import { ServiceFormFieldsResponse } from '@/types/models';
+import { ApiResponse, FormField } from '@/types/models';
 import { apiService } from './api';
 
 export class FormFieldService {
   /**
-   * Récupère les champs de formulaire pour un service
+   * Récupère les champs de formulaire pour un service de company
    */
-  static async getServiceFormFields(serviceId: number): Promise<ServiceFormFieldsResponse> {
-    const response = await apiService.get<ServiceFormFieldsResponse>(`/form-fields/service/${serviceId}`);
+  static async getCompanyServiceFormFields(companyServiceId: string): Promise<FormField[]> {
+    const response = await apiService.get<ApiResponse<FormField[]>>(`/advanced/form-fields/company-service/${companyServiceId}`);
 
     // Trier par step puis par position
-    response.form_fields = response.form_fields.sort((a, b) => {
+    const fields = response.data || [];
+    fields.sort((a, b) => {
       if (a.step !== b.step) {
         return a.step - b.step;
       }
       return a.position - b.position;
     });
 
-    return response;
+    return fields;
   }
 }
