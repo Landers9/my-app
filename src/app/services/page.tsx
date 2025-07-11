@@ -286,7 +286,7 @@ export default function ServiceForm() {
       };
 
       await createProject(projectData);
-      router.push("/confirmation");
+      router.push("/auth/login");
     } catch (error) {
       alert("Erreur lors de la création du projet. Veuillez réessayer.");
     }

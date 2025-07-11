@@ -6,44 +6,66 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useAuth } from '@/hooks/useAuth';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, isAuthenticated, isLoading: authLoading, error, clearError } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
 
-  // Animation initiale au chargement
+  // Redirection si déjà connecté
   useEffect(() => {
-    setIsLoaded(true);
-  }, []);
+    if (!authLoading && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  // Nettoyer les erreurs quand l'utilisateur tape
+  useEffect(() => {
+    if (error) {
+      clearError();
+    }
+  }, [email, password, clearError, error]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setIsLoading(true);
+
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
 
     try {
-      // Simuler une requête d'authentification (à remplacer par un vrai appel API)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await login({ email, password });
 
       // Animation de sortie avant redirection
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // Si la connexion réussit, rediriger vers le dashboard
       router.push("/dashboard");
     } catch (err) {
-      setError("Email ou mot de passe incorrect. Veuillez réessayer.");
+      // L'erreur est déjà gérée par le hook
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Styles cohérents avec le reste de l'application
+  // Affichage de chargement
+  // if (authLoading) {
+  //   return (
+  //     <div className="flex items-center justify-center h-screen bg-white">
+  //       <div className="text-center">
+  //         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1EB1D1] mx-auto"></div>
+  //         <p className="mt-2 text-gray-600">Vérification...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+
+  // Styles
   const inputClass = "w-full p-2 bg-gray-200 text-gray-700 border-none rounded-md focus:outline-none focus:ring-2 focus:ring-[#062C57] h-10";
   const buttonClass = "w-full p-3 bg-[#1EB1D1] hover:bg-[#062C57] text-white rounded-md transition duration-300 font-medium";
   const labelClass = "mb-1 text-sm text-gray-700";
@@ -191,7 +213,7 @@ export default function LoginPage() {
           className="space-y-4"
           variants={containerVariants}
           initial="hidden"
-          animate={isLoaded ? "visible" : "hidden"}
+          animate="visible"
         >
           <motion.div variants={itemVariants}>
             <div className={labelClass}>Adresse mail</div>
@@ -202,6 +224,7 @@ export default function LoginPage() {
               placeholder="E-mail professionnel"
               className={inputClass}
               required
+              disabled={isSubmitting}
             />
           </motion.div>
 
@@ -228,6 +251,7 @@ export default function LoginPage() {
                 placeholder="Mot de passe"
                 className={inputClass}
                 required
+                disabled={isSubmitting}
               />
               <motion.button
                 type="button"
@@ -235,6 +259,7 @@ export default function LoginPage() {
                 onClick={() => setShowPassword(!showPassword)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
+                disabled={isSubmitting}
               >
                 {showPassword ? (
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -263,6 +288,7 @@ export default function LoginPage() {
               className="h-4 w-4 text-[#1EB1D1] focus:ring-[#1EB1D1] rounded"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
+              disabled={isSubmitting}
             />
             <label htmlFor="remember-me" className="ml-2 text-sm text-gray-700">
               Se souvenir de moi
@@ -271,14 +297,14 @@ export default function LoginPage() {
 
           <motion.button
             type="submit"
-            disabled={isLoading}
-            className={buttonClass}
+            disabled={isSubmitting}
+            className={`${buttonClass} ${isSubmitting ? 'opacity-80 cursor-not-allowed' : ''}`}
             variants={buttonVariants}
-            animate={isLoading ? "loading" : "visible"}
-            whileHover={!isLoading ? "hover" : undefined}
-            whileTap={!isLoading ? "tap" : undefined}
+            animate={isSubmitting ? "loading" : "visible"}
+            whileHover={!isSubmitting ? "hover" : undefined}
+            whileTap={!isSubmitting ? "tap" : undefined}
           >
-            {isLoading ? (
+            {isSubmitting ? (
               <span className="flex items-center justify-center">
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -291,6 +317,24 @@ export default function LoginPage() {
             )}
           </motion.button>
         </motion.form>
+
+        {/* Lien d'inscription */}
+        <motion.div
+          className="mt-6 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+        >
+          <p className="text-sm text-gray-600">
+            Pas encore de compte ?{" "}
+            <Link
+              href="/auth/register"
+              className="text-[#1EB1D1] hover:text-[#062C57] font-medium"
+            >
+              Créer un compte
+            </Link>
+          </p>
+        </motion.div>
 
         {/* Bouton pour revenir à l'accueil (visible uniquement sur mobile) */}
         <motion.div
