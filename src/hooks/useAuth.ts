@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// hooks/useAuth.ts
+/* eslint-disable react-hooks/exhaustive-deps */
+// hooks/useAuth.ts - Mise à jour
 
 import { useState, useEffect } from 'react';
 import { User, LoginRequest, ApiError, UserCompany } from '@/types/models';
@@ -11,10 +11,13 @@ interface UseAuthReturn {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  isCurrentCompanyAdmin: boolean;
+  currentCompanyRole: string;
   login: (credentials: LoginRequest) => Promise<void>;
   logout: () => Promise<void>;
   setCurrentCompany: (company: UserCompany) => void;
   clearError: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 export const useAuth = (): UseAuthReturn => {
@@ -24,6 +27,32 @@ export const useAuth = (): UseAuthReturn => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Calcul des propriétés dérivées
+  const isCurrentCompanyAdmin = currentCompany?.role === 'admin' || currentCompany?.role === 'owner';
+  const currentCompanyRole = currentCompany?.role || 'member';
+
+  // Fonction pour rafraîchir les données utilisateur
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const refreshUser = async (): Promise<void> => {
+    if (isRefreshing) return; // Éviter les appels multiples
+
+    try {
+      setIsRefreshing(true);
+      if (AuthService.isAuthenticated()) {
+        const userData = await AuthService.getCurrentUser();
+        setUser(userData);
+        setCurrentCompanyState(AuthService.getCurrentCompany());
+        setIsAuthenticated(true);
+      }
+    } catch (err) {
+      console.error('Erreur lors du rafraîchissement utilisateur:', err);
+      // ... reste du code
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Vérification initiale
   useEffect(() => {
     const checkAuth = async () => {
@@ -32,31 +61,22 @@ export const useAuth = (): UseAuthReturn => {
         const currentCompany = AuthService.getCurrentCompany();
 
         if (AuthService.isAuthenticated() && storedUser) {
-          // Vérifier si le token est toujours valide
-          try {
-            const userData = await AuthService.getCurrentUser();
-            setUser(userData);
-            setCurrentCompanyState(AuthService.getCurrentCompany());
-            setIsAuthenticated(true);
-          } catch (err) {
-            // Token invalide, utiliser les données stockées si disponibles
-            if (storedUser) {
-              setUser(storedUser);
-              setCurrentCompanyState(currentCompany);
-              setIsAuthenticated(true);
-            } else {
-              AuthService.removeToken();
-              setUser(null);
-              setCurrentCompanyState(null);
-              setIsAuthenticated(false);
-            }
-          }
+          // Utiliser les données stockées immédiatement
+          setUser(storedUser);
+          setCurrentCompanyState(currentCompany);
+          setIsAuthenticated(true);
+
+          // Puis rafraîchir en arrière-plan sans bloquer l'UI
+          refreshUser().catch(() => {
+            // En cas d'erreur, garder les données stockées
+          });
         } else {
           setUser(null);
           setCurrentCompanyState(null);
           setIsAuthenticated(false);
         }
       } catch (err) {
+        console.error('Erreur lors de la vérification auth:', err);
         setUser(null);
         setCurrentCompanyState(null);
         setIsAuthenticated(false);
@@ -66,7 +86,7 @@ export const useAuth = (): UseAuthReturn => {
     };
 
     checkAuth();
-  }, []);
+  }, []); // Uniquement au montage
 
   const login = async (credentials: LoginRequest): Promise<void> => {
     try {
@@ -120,9 +140,12 @@ export const useAuth = (): UseAuthReturn => {
     isAuthenticated,
     isLoading,
     error,
+    isCurrentCompanyAdmin,
+    currentCompanyRole,
     login,
     logout,
     setCurrentCompany,
     clearError,
+    refreshUser,
   };
 };

@@ -1,12 +1,10 @@
 // services/projectService.ts
 
-import { ApiResponse, ProjectRequest, ProjectResponse } from '@/types/models';
+import { ProjectsResponse, ProjectFilters, Project, ApiResponse, ProjectRequest, ProjectResponse } from '@/types/models';
 import { apiService } from './api';
 
 export class ProjectService {
-  /**
-   * Crée un nouveau projet en tant qu'invité
-   */
+
   static async createGuestProject(projectData: ProjectRequest): Promise<ProjectResponse> {
     // Vérifier si nous avons des fichiers
     const hasFiles = projectData.fields.some(field =>
@@ -34,5 +32,42 @@ export class ProjectService {
       const response = await apiService.post<ApiResponse<ProjectResponse>>('/advanced/projects/guest-create', projectData);
       return response.data;
     }
+  }
+  
+  /**
+   * Récupère les projets d'une compagnie
+   */
+  static async getCompanyProjects(
+    companyId: string,
+    filters?: ProjectFilters
+  ): Promise<ProjectsResponse> {
+    let url = `/advanced/projects/company/${companyId}`;
+
+    // Ajouter les paramètres de filtrage si présents
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.search) params.append('search', filters.search);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.per_page) params.append('per_page', filters.per_page.toString());
+
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    return await apiService.get<ProjectsResponse>(url);
+  }
+
+  /**
+   * Récupère un projet spécifique
+   */
+  static async getProject(projectId: string): Promise<Project> {
+    return await apiService.get(`/projects/${projectId}`);
+  }
+
+  /**
+   * Supprime un projet
+   */
+  static async deleteProject(projectId: string): Promise<void> {
+    return await apiService.delete(`/projects/${projectId}`);
   }
 }

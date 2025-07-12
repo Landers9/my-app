@@ -34,6 +34,7 @@ export interface FormField {
   is_required: boolean;
   position: number;
   step: number;
+  can_edit?: boolean;
   form_field_enumeration: {
     id: string;
     name: string;
@@ -50,9 +51,9 @@ export interface User {
   last_name: string | null;
   email: string;
   telephone: string | null;
-  avatar: string;
+  avatar: string | null;
   is_active: boolean;
-  role: string;
+  role?: string;
   has_super_admin_access: number;
   has_company: boolean;
   token: string;
@@ -65,17 +66,45 @@ export interface UserCompany {
   id: string;
   name: string;
   slug: string;
-  description: string;
-  logo: string;
-  website: string;
-  email: string;
-  phone: string;
-  address: string;
-  slogan: string;
-  cover_image: string;
+  description: string | null;
+  logo: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  slogan: string | null;
+  cover_image: string | null;
   created_at: string;
-  role: string;
+  role: string; // 'owner' | 'admin' | 'member'
   is_active: boolean;
+}
+
+// ======= PROFILE MODELS =======
+
+export interface ProfileUpdateRequest {
+  first_name: string;
+  last_name: string;
+  telephone: string;
+  avatar?: File | null;
+}
+
+export interface PasswordChangeRequest {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+}
+
+export interface ProfileFormData {
+  first_name: string;
+  last_name: string;
+  telephone: string;
+  avatar?: File | null;
+}
+
+export interface PasswordFormData {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
 }
 
 // ======= REQUESTS =======
@@ -101,6 +130,88 @@ export interface ProjectResponse {
 export interface LoginRequest {
   email: string;
   password: string;
+}
+
+// ======= PROJECT MODELS =======
+
+export interface Project {
+  id: string;
+  status: ProjectStatus;
+  company_service: CompanyService;
+  user: ProjectUser;
+  invoice_file_path: string | null;
+  final_price: number;
+  reference: string;
+  submitted_at: string | null;
+  processing_at: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  in_development_at: string | null;
+  in_testing_at: string | null;
+  completed_at: string | null;
+  achieved_at: string | null;
+  created_at: string;
+  created_at_humanized: string;
+}
+
+export interface CompanyService {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  is_active: boolean;
+  company: ProjectCompany;
+}
+
+export interface ProjectCompany {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  logo: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  slogan: string | null;
+  cover_image: string | null;
+  created_at: string;
+}
+
+export interface ProjectUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  telephone: string | null;
+  avatar: string | null;
+  is_active: boolean;
+  role: string;
+  created_at: string;
+}
+
+export type ProjectStatus =
+  | 'submitted'
+  | 'processing'
+  | 'approved'
+  | 'rejected'
+  | 'in_development'
+  | 'in_testing'
+  | 'completed'
+  | 'achieved';
+
+export interface ProjectsResponse {
+  success: boolean;
+  count: number;
+  data: Project[];
+  message: string;
+}
+
+export interface ProjectFilters {
+  status?: ProjectStatus;
+  search?: string;
+  page?: number;
+  per_page?: number;
 }
 
 // ======= UTILITAIRES =======

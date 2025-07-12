@@ -3,19 +3,27 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'appcommands-staging.milleniumtechs.com',
+        protocol: 'http',
+        hostname: '158ea9937b33.ngrok-free.app',
         port: '',
-        pathname: '/storage/**',
+        pathname: '/**',
       },
       {
         protocol: 'http',
         hostname: 'localhost',
         port: '8000',
-        pathname: '/storage/**',
+        pathname: '/**',
       },
+      // Ajouter d'autres domaines si nécessaire
+      {
+        protocol: 'https',
+        hostname: 'milleniumtechs.com',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
+  // Autres configurations...
 }
 
 module.exports = nextConfig

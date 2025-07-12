@@ -1,18 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 import React, { useState, useEffect, ReactNode } from 'react';
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Home, FileText, Users, User, Settings, ChevronDown, Check, Building2 } from 'lucide-react';
-import Image from 'next/image';
-
-type Company = {
-  id: string;
-  name: string;
-  logo: string | null;
-  slug: string;
-};
+import { Menu, X, Home, FileText, Users, User, LogOut, ChevronDown, Check, Buildng2 } from 'lucide-react';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -24,29 +19,11 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [companySwitcherOpen, setCompanySwitcherOpen] = useState(false);
   const pathname = usePathname();
 
-  // Mock data - à remplacer par vos données réelles
-  const [userCompanies] = useState<Company[]>([
-    {
-      id: "1",
-      name: "Millenium Tech",
-      logo: "/images/logo_mts.png",
-      slug: "millennium-tech"
-    },
-    {
-      id: "2",
-      name: "Startup Innovation",
-      logo: null,
-      slug: "startup-innovation"
-    },
-    {
-      id: "3",
-      name: "Digital Agency",
-      logo: null,
-      slug: "digital-agency-pro"
-    }
-  ]);
+  // Utiliser les données du contexte d'authentification
+  const { user, currentCompany, logout, setCurrentCompany, isCurrentCompanyAdmin } = useAuthContext();
 
-  const [currentCompany, setCurrentCompany] = useState<Company>(userCompanies[0]);
+  // Obtenir toutes les compagnies de l'utilisateur
+  const userCompanies = user?.companies || [];
 
   useEffect(() => {
     setIsLoaded(true);
@@ -60,11 +37,21 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     setCompanySwitcherOpen(!companySwitcherOpen);
   };
 
-  const selectCompany = (company: Company) => {
+  const selectCompany = (company: any) => {
     setCurrentCompany(company);
     setCompanySwitcherOpen(false);
-    // Ici vous pouvez ajouter la logique pour changer de contexte d'entreprise
-    // Par exemple : router.push(`/dashboard?company=${company.slug}`)
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Rediriger vers la page de login après déconnexion
+      window.location.href = '/auth/login';
+      await logout();
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      // Même en cas d'erreur, rediriger vers login
+      window.location.href = '/auth/login';
+    }
   };
 
   // Fonction pour vérifier si un lien est actif
@@ -80,6 +67,14 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  // Fonction pour générer les initiales de l'utilisateur
+  const getUserInitials = () => {
+    if (!user) return 'U';
+    const firstName = user.first_name || '';
+    const lastName = user.last_name || '';
+    return (firstName[0] || '') + (lastName[0] || '');
   };
 
   // Animation pour les éléments du menu seulement
@@ -135,7 +130,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* Overlay for mobile when sidebar is open - réduit l'opacité */}
+      {/* Overlay for mobile when sidebar is open */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-gray bg-opacity-20 z-20 lg:hidden"
@@ -143,13 +138,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         />
       )}
 
-      {/* Sidebar - sans animation d'apparition */}
+      {/* Sidebar */}
       <div
         className={`fixed lg:static w-64 h-full bg-white shadow-lg z-30 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } transition-transform duration-300`}
       >
-          {/* Sélecteur d'entreprise seulement */}
+        {/* Sélecteur d'entreprise */}
         <div className="flex items-center justify-between px-4 h-16 border-b border-gray-100">
           <div className="flex items-center flex-1 min-w-0">
             {/* Sélecteur d'entreprise */}
@@ -162,18 +157,15 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   {/* Initiales de l'entreprise */}
                   <div className="flex-shrink-0 w-8 h-8 mr-3">
                     <div className="w-8 h-8 bg-gradient-to-br from-[#1EB1D1] to-[#17a2b8] rounded-md flex items-center justify-center text-white text-xs font-semibold">
-                      {getCompanyInitials(currentCompany.name)}
+                      {currentCompany ? getCompanyInitials(currentCompany.name) : 'MT'}
                     </div>
                   </div>
 
                   {/* Nom de l'entreprise */}
                   <div className="min-w-0 flex-1 text-left">
                     <p className="text-md font-semibold text-gray-900 truncate">
-                      {currentCompany.name}
+                      {currentCompany?.name || 'Aucune entreprise'}
                     </p>
-                    {/* <p className="text-xs text-gray-500 truncate">
-                      Entreprise
-                    </p> */}
                   </div>
                 </div>
 
@@ -188,7 +180,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
               {/* Dropdown du sélecteur d'entreprise */}
               <AnimatePresence>
-                {companySwitcherOpen && (
+                {companySwitcherOpen && userCompanies.length > 0 && (
                   <motion.div
                     variants={dropdownVariants}
                     initial="hidden"
@@ -216,19 +208,19 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                               {company.name}
                             </p>
                           </div>
-                          {currentCompany.id === company.id && (
+                          {currentCompany?.id === company.id && (
                             <Check size={16} className="text-[#1EB1D1] flex-shrink-0" />
                           )}
                         </button>
                       ))}
 
                       {/* Option pour créer/rejoindre une entreprise */}
-                      <div className="border-t border-gray-100 mt-2 pt-2">
+                      {/* <div className="border-t border-gray-100 mt-2 pt-2">
                         <button className="w-full flex items-center px-3 py-2 hover:bg-gray-50 transition-colors text-gray-600">
                           <Building2 size={16} className="mr-3" />
                           <span className="text-sm">Créer une entreprise</span>
                         </button>
-                      </div>
+                      </div> */}
                     </div>
                   </motion.div>
                 )}
@@ -249,19 +241,24 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             animate={isLoaded ? "visible" : "hidden"}
           >
             <ul className="space-y-2">
-              <motion.li variants={menuItemVariants}>
-                <Link
-                  href="/dashboard"
-                  className={`flex items-center p-3 rounded-lg transition-all duration-200 ${
-                    isActiveLink('/dashboard')
-                      ? 'bg-[#1EB1D1] text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  <Home size={18} className="mr-3" />
-                  <span className="font-medium">Dashboard</span>
-                </Link>
-              </motion.li>
+              {/* Dashboard - Visible uniquement pour les admins */}
+              {isCurrentCompanyAdmin && (
+                <motion.li variants={menuItemVariants}>
+                  <Link
+                    href="/dashboard"
+                    className={`flex items-center p-3 rounded-lg transition-all duration-200 ${
+                      isActiveLink('/dashboard')
+                        ? 'bg-[#1EB1D1] text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Home size={18} className="mr-3" />
+                    <span className="font-medium">Dashboard</span>
+                  </Link>
+                </motion.li>
+              )}
+
+              {/* Mes Projets - Visible pour tous */}
               <motion.li variants={menuItemVariants}>
                 <Link
                   href="/dashboard/projects"
@@ -275,19 +272,23 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   <span className="font-medium">Mes Projets</span>
                 </Link>
               </motion.li>
-              <motion.li variants={menuItemVariants}>
-                <Link
-                  href="/dashboard/clients"
-                  className={`flex items-center p-3 rounded-lg transition-all duration-200 ${
-                    isActiveLink('/dashboard/clients')
-                      ? 'bg-[#1EB1D1] text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
-                >
-                  <Users size={18} className="mr-3" />
-                  <span className="font-medium">Gestion des clients</span>
-                </Link>
-              </motion.li>
+
+              {/* Gestion des clients - Visible uniquement pour les admins */}
+              {isCurrentCompanyAdmin && (
+                <motion.li variants={menuItemVariants}>
+                  <Link
+                    href="/dashboard/clients"
+                    className={`flex items-center p-3 rounded-lg transition-all duration-200 ${
+                      isActiveLink('/dashboard/clients')
+                        ? 'bg-[#1EB1D1] text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Users size={18} className="mr-3" />
+                    <span className="font-medium">Gestion des clients</span>
+                  </Link>
+                </motion.li>
+              )}
             </ul>
           </motion.nav>
         </div>
@@ -315,17 +316,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </Link>
               </motion.li>
               <motion.li variants={menuItemVariants}>
-                <Link
-                  href="/dashboard/settings"
-                  className={`flex items-center p-3 rounded-lg transition-all duration-200 ${
-                    isActiveLink('/dashboard/settings')
-                      ? 'bg-[#1EB1D1] text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center p-3 rounded-lg transition-all duration-200 text-gray-700 hover:bg-red-50 hover:text-red-600"
                 >
-                  <Settings size={18} className="mr-3" />
-                  <span className="font-medium">Paramètres</span>
-                </Link>
+                  <LogOut size={18} className="mr-3" />
+                  <span className="font-medium">Déconnexion</span>
+                </button>
               </motion.li>
             </ul>
           </motion.nav>
@@ -334,7 +331,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header dynamique - sans background blanc ni shadow */}
+        {/* Header dynamique */}
         <header className="bg-white border-b border-gray-200">
           <div className="flex items-center justify-between px-6 h-16">
             <div className="flex items-center">
@@ -344,13 +341,20 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               >
                 <Menu size={24} />
               </button>
-              <Image
-                src="/images/logo_mts.png"
-                alt="Millennium Tech"
-                width={180}
-                height={40}
-              />
-              {/* <h1 className="text-xl font-semibold text-[#062C57]">{getPageTitle()}</h1> */}
+              {/* Logo de l'entreprise courante */}
+              {currentCompany?.logo ? (
+                <Image
+                  src={currentCompany.logo}
+                  alt={currentCompany.name}
+                  width={160}
+                  height={30}
+                  className="object-contain"
+                />
+              ) : (
+                <div className="text-xl font-bold bg-gradient-to-r from-[#062C57] to-[#1EB1D1] bg-clip-text text-transparent">
+                  {currentCompany?.name || 'Millenium Tech'}
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-4">
               {/* Notifications */}
@@ -363,11 +367,16 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               {/* User profile */}
               <div className="flex items-center space-x-3">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1EB1D1] to-[#17a2b8] flex items-center justify-center text-white font-semibold text-sm">
-                  U
+                  {getUserInitials()}
                 </div>
                 <div className="hidden md:block">
-                  <p className="text-sm font-medium text-gray-900">Utilisateur</p>
-                  <p className="text-xs text-gray-500">Admin</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.first_name} {user?.last_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {currentCompany?.role === 'owner' ? 'Propriétaire' :
+                     currentCompany?.role === 'admin' ? 'Admin' : 'Membre'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -376,7 +385,6 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-auto">
-          {/* Content will be rendered here */}
           {children}
         </main>
 

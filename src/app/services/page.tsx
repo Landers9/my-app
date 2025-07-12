@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -14,6 +13,7 @@ import { useFormFields } from '@/hooks/useFormFields';
 import { useProject } from '@/hooks/useProject';
 import { CompanyService } from '@/services/companyService';
 import { FormData, ProjectRequest, ProjectField } from '@/types/models';
+import Image from "next/image";
 
 // Composant pour l'enregistrement audio
 const AudioRecorder = dynamic(() => import("@/components/AudioRecorder"), {
@@ -850,7 +850,7 @@ export default function ServiceForm() {
             src={company?.cover_image || "/images/welcome.jpg"}
             alt={company?.name || "Image de couverture"}
             fill
-            style={{ objectFit: "cover" }}
+            style={{ objectFit: 'cover' }}
             priority
           />
           <motion.div
@@ -868,7 +868,7 @@ export default function ServiceForm() {
           src={company?.cover_image || "/images/welcome.jpg"}
           alt={company?.name || "Image de couverture"}
           fill
-          style={{ objectFit: "cover" }}
+          style={{ objectFit: 'cover' }}
           priority
         />
       </div>
@@ -893,13 +893,21 @@ export default function ServiceForm() {
             stiffness: 200
           }}
         >
-          <Image
-            src={company?.logo || "/images/logo_mts.png"}
-            alt={company?.name || "Logo"}
-            width={180}
-            height={40}
-            className="object-contain"
-          />
+          {company?.logo ? (
+            <Image
+              src={company.logo}
+              alt={company.name || "Logo entreprise"}
+              width={180}
+              height={40}
+              className="object-contain"
+            />
+          ) : (
+            <div className="flex items-center h-10">
+              <span className="text-xl font-bold bg-gradient-to-r from-[#062C57] to-[#1EB1D1] bg-clip-text text-transparent">
+                {company?.name}
+              </span>
+            </div>
+          )}
         </motion.div>
 
         <motion.h1

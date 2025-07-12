@@ -149,7 +149,7 @@ export default function Home() {
       >
         <Image
           src={company?.cover_image || "/images/welcome.jpg"}
-          alt={company?.name || ""}
+          alt={company?.name || "Image de couverture"}
           fill
           style={{ objectFit: 'cover' }}
           priority
@@ -175,13 +175,21 @@ export default function Home() {
           className="mb-8"
           variants={logoVariants}
         >
-          <Image
-            src={company?.logo || "/images/default-logo.png"}
-            alt={company?.name || ""}
-            width={180}
-            height={40}
-            className="object-contain"
-          />
+          {company?.logo ? (
+            <Image
+              src={company.logo}
+              alt={company.name || "Logo entreprise"}
+              width={180}
+              height={40}
+              className="object-contain"
+            />
+          ) : (
+            <div className="flex items-center h-10">
+              <span className="text-xl font-bold bg-gradient-to-r from-[#062C57] to-[#1EB1D1] bg-clip-text text-transparent">
+                {company?.name}
+              </span>
+            </div>
+          )}
         </motion.div>
 
         {/* Titre principal avec animations séquentielles - utilise le slogan de la company */}

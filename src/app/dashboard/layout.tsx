@@ -1,6 +1,9 @@
+// app/dashboard/layout.tsx
 "use client";
 import { ReactNode } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { RouteGuard } from "@/components/RouteGuard";
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -8,8 +11,12 @@ type DashboardLayoutProps = {
 
 export default function Layout({ children }: DashboardLayoutProps) {
   return (
-    <DashboardLayout>
-      {children}
-    </DashboardLayout>
+    <AuthProvider>
+      <RouteGuard>
+        <DashboardLayout>
+          {children}
+        </DashboardLayout>
+      </RouteGuard>
+    </AuthProvider>
   );
 }

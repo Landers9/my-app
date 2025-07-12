@@ -1,6 +1,6 @@
-// services/authService.ts
+// services/authService.ts - Mise à jour
 
-import { User, LoginRequest, ApiResponse, UserCompany } from '@/types/models';
+import { User, LoginRequest, ApiResponse, UserCompany, PasswordChangeRequest, ProfileUpdateRequest } from '@/types/models';
 import { apiService } from './api';
 
 export class AuthService {
@@ -21,7 +21,7 @@ export class AuthService {
   }
 
   /**
-   * Récupère l'utilisateur courant
+   * Récupère l'utilisateur courant avec ses compagnies
    */
   static async getCurrentUser(): Promise<User> {
     const response = await apiService.get<ApiResponse<User>>('/me/profil');
@@ -60,6 +60,12 @@ export class AuthService {
    * Met à jour les données utilisateur existantes
    */
   private static updateUserData(user: User): void {
+    // Conserver le token existant si pas fourni dans la réponse
+    const existingToken = this.getToken();
+    if (existingToken && !user.token) {
+      user.token = existingToken;
+    }
+
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
 
     // Mettre à jour la company courante si elle existe toujours
@@ -124,6 +130,22 @@ export class AuthService {
     return companyData ? JSON.parse(companyData) : null;
   }
 
+  /**
+   * Vérifie si l'utilisateur est admin de la compagnie courante
+   */
+  static isCurrentCompanyAdmin(): boolean {
+    const currentCompany = this.getCurrentCompany();
+    return currentCompany?.role === 'admin' || currentCompany?.role === 'owner';
+  }
+
+  /**
+   * Récupère le rôle dans la compagnie courante
+   */
+  static getCurrentCompanyRole(): string {
+    const currentCompany = this.getCurrentCompany();
+    return currentCompany?.role || 'member';
+  }
+
   // Méthodes deprecated - gardées pour compatibilité
   static saveToken(token: string): void {
     localStorage.setItem(this.TOKEN_KEY, token);
@@ -131,5 +153,41 @@ export class AuthService {
 
   static removeToken(): void {
     this.clearAllData();
+  }
+
+  /**
+ * Met à jour le profil utilisateur
+ */
+  static async updateProfile(profileData: ProfileUpdateRequest): Promise<User> {
+    const formData = new FormData();
+
+    formData.append('first_name', profileData.first_name);
+    formData.append('last_name', profileData.last_name);
+    formData.append('telephone', profileData.telephone);
+    formData.append('_method', 'PUT');
+
+    if (profileData.avatar) {
+      formData.append('avatar', profileData.avatar);
+    }
+
+    const response = await apiService.postFormData<ApiResponse<User>>('/me/profil', formData);
+
+    // Mettre à jour les données utilisateur stockées
+    this.updateUserData(response.data);
+
+    return response.data;
+  }
+
+  /**
+   * Change le mot de passe utilisateur
+   */
+  static async changePassword(passwordData: PasswordChangeRequest): Promise<void> {
+    const formData = new FormData();
+
+    formData.append('current_password', passwordData.current_password);
+    formData.append('password', passwordData.password);
+    formData.append('password_confirmation', passwordData.password_confirmation);
+
+    await apiService.postFormData('/me/change-password', formData);
   }
 }

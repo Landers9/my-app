@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ApiError, ProjectRequest, ProjectResponse } from '@/types/models';
-import { ProjectService } from '@/services/ProjectService';
+import { ProjectService } from '@/services/ProjectAsGuestService';
 
 interface UseProjectReturn {
   createProject: (projectData: ProjectRequest) => Promise<ProjectResponse>;
