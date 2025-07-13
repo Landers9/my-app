@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
+import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -10,10 +11,9 @@ import { motion, AnimatePresence } from "framer-motion";
 // Imports des hooks et services
 import { useCompany } from '@/hooks/useCompany';
 import { useFormFields } from '@/hooks/useFormFields';
-import { useProject } from '@/hooks/useProject';
+import { useGuestProjects } from '@/hooks/useGuestProjects';
 import { CompanyService } from '@/services/companyService';
-import { FormData, ProjectRequest, ProjectField } from '@/types/models';
-import Image from "next/image";
+import { FormData, ProjectRequest, ProjectFieldRequest } from '@/types/models';
 
 // Composant pour l'enregistrement audio
 const AudioRecorder = dynamic(() => import("@/components/AudioRecorder"), {
@@ -147,13 +147,13 @@ export default function ServiceForm() {
   const { formFields, isLoading: fieldsLoading, getFieldsByStep } = useFormFields(
     formData.company_service_id as string || ''
   );
-  const { createProject, isSubmitting } = useProject();
+  const { createProject, isSubmitting } = useGuestProjects();
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
 
-  // Calculer le nombre total d'étapes basé sur les champs
+  // Calculer le nombre total d'étapes basé sur les champs (LOGIQUE ORIGINALE)
   useEffect(() => {
     if (formFields.length > 0) {
       const maxStep = Math.max(...formFields.map(field => field.step || 1), 0);
@@ -182,12 +182,12 @@ export default function ServiceForm() {
     }
   };
 
-  // Gestion de l'enregistrement audio
+  // Gestion de l'enregistrement audio (LOGIQUE ORIGINALE)
   const handleAudioChange = (audioBlob: Blob | null) => {
     setFormData(prev => ({ ...prev, audio_message: audioBlob }));
   };
 
-  // Gestion des fichiers
+  // Gestion des fichiers (LOGIQUE ORIGINALE - SÉLECTION MULTIPLE)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
     if (e.target.files) {
       const existingFiles = formData[fieldName] as File[] || [];
@@ -197,7 +197,7 @@ export default function ServiceForm() {
     }
   };
 
-  // Suppression d'un fichier
+  // Suppression d'un fichier (LOGIQUE ORIGINALE)
   const handleRemoveFile = (fieldName: string, indexToRemove: number) => {
     const currentFiles = formData[fieldName] as File[] || [];
     const updatedFiles = currentFiles.filter((_, index) => index !== indexToRemove);
@@ -244,11 +244,11 @@ export default function ServiceForm() {
     }
   };
 
-  // Soumission du formulaire
+  // Soumission du formulaire (SEULE PARTIE MODIFIÉE)
   const handleSubmitButtonClick = async () => {
     try {
-      // Préparer les données selon le format attendu par l'API
-      const projectFields: ProjectField[] = formFields.map(field => {
+      // Utiliser le bon type ProjectFieldRequest pour la création
+      const projectFields: ProjectFieldRequest[] = formFields.map(field => {
         let value = '';
         let file: string | File | Blob = '';
 
@@ -309,6 +309,23 @@ export default function ServiceForm() {
       }
     }
     return [];
+  };
+
+  // Fonction pour obtenir l'icône selon l'extension (LOGIQUE ORIGINALE)
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'pdf': return '📄';
+      case 'doc':
+      case 'docx': return '📝';
+      case 'xls':
+      case 'xlsx': return '📊';
+      case 'ppt':
+      case 'pptx': return '📽️';
+      case 'txt': return '📃';
+      case 'rtf': return '📄';
+      default: return '📄';
+    }
   };
 
   // Rendu des champs pour l'étape courante
@@ -558,7 +575,7 @@ export default function ServiceForm() {
                 </div>
               )}
 
-              {/* Champ fichiers documents */}
+              {/* Champ fichiers documents (LOGIQUE ORIGINALE AVEC ICÔNES) */}
               {fieldType === "files_document" && (
                 <div>
                   <input
@@ -589,8 +606,9 @@ export default function ServiceForm() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.05 }}
                           >
-                            <div className="text-sm text-gray-700 truncate max-w-[80%]">
-                              📄 {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                            <div className="text-sm text-gray-700 truncate max-w-[80%] flex items-center">
+                              <span className="mr-2">{getFileIcon(file.name)}</span>
+                              {file.name} ({(file.size / 1024).toFixed(1)} KB)
                             </div>
                             <motion.button
                               type="button"
@@ -610,7 +628,7 @@ export default function ServiceForm() {
                 </div>
               )}
 
-              {/* Champ fichiers images */}
+              {/* Champ fichiers images (LOGIQUE ORIGINALE AVEC PREVIEW) */}
               {fieldType === "files_image" && (
                 <div>
                   <input
@@ -641,8 +659,12 @@ export default function ServiceForm() {
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: idx * 0.05 }}
                           >
-                            <div className="aspect-square bg-gray-200 rounded-md flex items-center justify-center text-xs text-gray-600 p-2">
-                              🖼️ {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
+                            <div className="aspect-square bg-gray-200 rounded-md overflow-hidden">
+                              <img
+                                src={URL.createObjectURL(file)}
+                                alt={file.name}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                             <motion.button
                               type="button"
@@ -662,7 +684,7 @@ export default function ServiceForm() {
                 </div>
               )}
 
-              {/* Champ enregistrement audio */}
+              {/* Champ enregistrement audio (LOGIQUE ORIGINALE - LIVE RECORDING) */}
               {fieldType === "files_audio" && (
                 <div>
                   <AudioRecorder onChange={handleAudioChange} />
@@ -752,7 +774,6 @@ export default function ServiceForm() {
               xmlns="http://www.w3.org/2000/svg"
               width="24"
               height="24"
-              viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -792,7 +813,7 @@ export default function ServiceForm() {
     );
   };
 
-  // Indicateur d'étapes
+  // Indicateur d'étapes (LOGIQUE ORIGINALE - DYNAMIQUE)
   const renderStepIndicator = () => {
     return (
       <motion.div
@@ -834,6 +855,31 @@ export default function ServiceForm() {
         ))}
       </motion.div>
     );
+  };
+
+  // Générer dynamiquement les titres d'étapes (LOGIQUE ORIGINALE)
+  const getStepTitle = (step: number) => {
+    if (step === 0) return "Sélectionnez votre service";
+
+    const stepFields = getFieldsByStep(step);
+    if (stepFields.length === 0) return `Étape ${step}`;
+
+    // Déterminer le titre basé sur les types de champs
+    const hasPersonalFields = stepFields.some(field =>
+      ['text', 'email', 'number'].includes(field.form_field_enumeration?.name || '')
+    );
+    const hasProjectFields = stepFields.some(field =>
+      ['textarea', 'select', 'checkbox', 'radio'].includes(field.form_field_enumeration?.name || '')
+    );
+    const hasMediaFields = stepFields.some(field =>
+      ['files_document', 'files_image', 'files_audio'].includes(field.form_field_enumeration?.name || '')
+    );
+
+    if (hasPersonalFields) return "Vos informations personnelles";
+    if (hasProjectFields) return "Détails de votre projet";
+    if (hasMediaFields) return "Fichiers et médias";
+
+    return `Étape ${step}`;
   };
 
   return (
@@ -923,7 +969,7 @@ export default function ServiceForm() {
         {renderStepIndicator()}
 
         <div className="flex-1 flex flex-col">
-          {/* Titre de l'étape actuelle */}
+          {/* Titre de l'étape actuelle (DYNAMIQUE) */}
           <AnimatePresence mode="wait">
             <motion.h2
               key={`step-title-${currentStep}`}
@@ -933,10 +979,7 @@ export default function ServiceForm() {
               animate="animate"
               exit="exit"
             >
-              {currentStep === 0 && "Sélectionnez votre service"}
-              {currentStep === 1 && "Vos informations personnelles"}
-              {currentStep === 2 && "Détails de votre projet"}
-              {currentStep === 3 && "Fichiers et médias"}
+              {getStepTitle(currentStep)}
             </motion.h2>
           </AnimatePresence>
 

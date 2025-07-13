@@ -1,41 +1,32 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Download, FileText, Image as ImageIcon, User, Calendar, DollarSign, Play, Pause, Volume2, Zap, Target, Smartphone } from "lucide-react";
+import {
+  Download, FileText, Image as ImageIcon, User, Calendar, DollarSign,
+  Play, Pause, Volume2, ArrowLeft, ExternalLink, Mail, Phone, Globe,
+  Eye, Hash, CheckCircle, Clock, AlertCircle, Package, Upload, TestTube2
+} from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
-
-// Types pour les données
-interface ProjectDocument {
-  id: string;
-  name: string;
-  type: 'pdf' | 'doc' | 'xlsx' | 'image';
-  size: string;
-  uploadDate: string;
-}
-
-interface ProjectDetails {
-  id: string;
-  title: string;
-  category: string;
-  serviceType: string;
-  client: {
-    name: string;
-    email: string;
-  };
-  status: string;
-  creationDate: string;
-  description: string;
-  budget: string;
-  features: string[];
-  platform?: string;
-  assignedTo: string;
-  audioMessage?: string;
-  progress: number;
-}
+import { RouteGuard } from "@/components/RouteGuard";
+import { ProjectService } from "@/services/projectService";
+import { Project } from "@/types/models";
+import {
+  getStatusConfig,
+  formatPrice,
+  getFieldTypeIcon,
+  formatFieldValue,
+  groupFieldsByStep,
+  sortFieldsByPosition
+} from "@/utils/projectUtils";
 
 export default function ProjectDetailsPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [project, setProject] = useState<Project | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const params = useParams();
 
@@ -43,816 +34,714 @@ export default function ProjectDetailsPage() {
     setIsLoaded(true);
   }, []);
 
-  // Données du projet enrichies
-  const projectData: ProjectDetails = {
-    id: params?.id as string || "#PROJ001",
-    title: "Dagger-Print",
-    category: "MILLENNIUM TECH",
-    serviceType: "Développement mobile",
-    client: {
-      name: "Mitchell ROSS",
-      email: "m.mitchell@gmail.com"
-    },
-    status: "En cours",
-    creationDate: "15 Janvier 2025",
-    description: "Dagger-Print est une application mobile innovante conçue pour révolutionner l'industrie de l'impression. Cette solution permet aux utilisateurs de commander des services d'impression directement depuis leur smartphone, avec une interface intuitive et des fonctionnalités avancées de personnalisation. L'application intègre un système de géolocalisation pour trouver les imprimeurs les plus proches, un module de paiement sécurisé, et un suivi en temps réel des commandes.",
-    budget: "25000",
-    features: ["E-commerce", "Géolocalisation", "Paiement en ligne", "Notifications push", "Interface intuitive", "Suivi commandes"],
-    platform: "Les deux",
-    assignedTo: "M. Michael",
-    audioMessage: "/audio/project-description.mp3",
-    progress: 65
-  };
+  // Charger les détails du projet
+  useEffect(() => {
+    const fetchProjectDetails = async () => {
+      if (!params?.id) return;
 
-  const projectDocuments: ProjectDocument[] = [
-    {
-      id: "doc1",
-      name: "Cahier des charges complet.pdf",
-      type: "pdf",
-      size: "2.5 MB",
-      uploadDate: "12 Jan 2025"
-    },
-    {
-      id: "doc2",
-      name: "Maquettes UI-UX.sketch",
-      type: "image",
-      size: "8.3 MB",
-      uploadDate: "10 Jan 2025"
-    },
-    {
-      id: "doc3",
-      name: "Specifications techniques.docx",
-      type: "doc",
-      size: "1.2 MB",
-      uploadDate: "10 Jan 2025"
-    },
-    {
-      id: "doc4",
-      name: "Budget détaillé.xlsx",
-      type: "xlsx",
-      size: "856 KB",
-      uploadDate: "08 Jan 2025"
-    }
-  ];
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await ProjectService.getProject(params.id as string);
+        setProject(response.data);
+      } catch (err: any) {
+        console.error('Erreur lors du chargement du projet:', err);
+        setError(err?.message || 'Erreur lors du chargement du projet');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const galleryImages = [
-    "/images/gallery1.jpg",
-    "/images/gallery2.jpg",
-    "/images/gallery3.jpg",
-    "/images/gallery4.jpg",
-    "/images/gallery5.jpg",
-    "/images/gallery6.jpg"
-  ];
+    fetchProjectDetails();
+  }, [params?.id]);
 
   const toggleAudio = () => {
     setIsAudioPlaying(!isAudioPlaying);
   };
 
-  const getDocumentIcon = (type: string) => {
-    const iconMap = {
-      pdf: { icon: FileText, color: "from-red-400 to-pink-500" },
-      doc: { icon: FileText, color: "from-blue-400 to-cyan-500" },
-      xlsx: { icon: FileText, color: "from-green-400 to-emerald-500" },
-      image: { icon: ImageIcon, color: "from-purple-400 to-violet-500" }
+  // Calculer le progrès basé sur le statut
+  const getProgressPercentage = (status: string) => {
+    const progressMap: Record<string, number> = {
+      'submitted': 15,
+      'processing': 30,
+      'approved': 50,
+      'rejected': 0,
+      'in_development': 75,
+      'in_testing': 90,
+      'completed': 95,
+      'achieved': 100
+    };
+    return progressMap[status] || 0;
+  };
+
+  // Timeline basée sur les timestamps du projet
+  const getProjectTimeline = (project: Project) => {
+    const timeline = [];
+
+    const statusMapping = {
+      submitted: { icon: Upload, label: "Projet soumis" },
+      processing: { icon: Clock, label: "En traitement" },
+      approved: { icon: CheckCircle, label: "Approuvé" },
+      rejected: { icon: AlertCircle, label: "Rejeté" },
+      in_development: { icon: Package, label: "En développement" },
+      in_testing: { icon: TestTube2, label: "En test" },
+      completed: { icon: CheckCircle, label: "Terminé" },
+      achieved: { icon: CheckCircle, label: "Livré" }
     };
 
-    const { icon: Icon, color } = iconMap[type as keyof typeof iconMap] || iconMap.doc;
+    if (project.submitted_at) {
+      timeline.push({
+        ...statusMapping.submitted,
+        date: new Date(project.submitted_at).toLocaleDateString('fr-FR'),
+        status: "completed"
+      });
+    }
 
+    if (project.processing_at) {
+      timeline.push({
+        ...statusMapping.processing,
+        date: new Date(project.processing_at).toLocaleDateString('fr-FR'),
+        status: project.status === 'processing' ? "current" : "completed"
+      });
+    }
+
+    if (project.approved_at) {
+      timeline.push({
+        ...statusMapping.approved,
+        date: new Date(project.approved_at).toLocaleDateString('fr-FR'),
+        status: project.status === 'approved' ? "current" : "completed"
+      });
+    }
+
+    if (project.rejected_at) {
+      timeline.push({
+        ...statusMapping.rejected,
+        date: new Date(project.rejected_at).toLocaleDateString('fr-FR'),
+        status: project.status === 'rejected' ? "current" : "completed"
+      });
+    }
+
+    if (project.in_development_at) {
+      timeline.push({
+        ...statusMapping.in_development,
+        date: new Date(project.in_development_at).toLocaleDateString('fr-FR'),
+        status: project.status === 'in_development' ? "current" : "completed"
+      });
+    }
+
+    if (project.in_testing_at) {
+      timeline.push({
+        ...statusMapping.in_testing,
+        date: new Date(project.in_testing_at).toLocaleDateString('fr-FR'),
+        status: project.status === 'in_testing' ? "current" : "completed"
+      });
+    }
+
+    if (project.completed_at) {
+      timeline.push({
+        ...statusMapping.completed,
+        date: new Date(project.completed_at).toLocaleDateString('fr-FR'),
+        status: project.status === 'completed' ? "current" : "completed"
+      });
+    }
+
+    if (project.achieved_at) {
+      timeline.push({
+        ...statusMapping.achieved,
+        date: new Date(project.achieved_at).toLocaleDateString('fr-FR'),
+        status: project.status === 'achieved' ? "current" : "completed"
+      });
+    }
+
+    return timeline;
+  };
+
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5 }
+  };
+
+  if (isLoading) {
     return (
-      <div className={`w-12 h-12 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center`}>
-        <Icon size={20} className="text-white" />
-      </div>
+      <RouteGuard>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Chargement des détails du projet...</p>
+          </div>
+        </div>
+      </RouteGuard>
     );
-  };
+  }
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.4,
-        when: "beforeChildren",
-        staggerChildren: 0.08
-      }
-    }
-  };
+  if (error || !project) {
+    return (
+      <RouteGuard>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={24} className="text-red-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Projet introuvable</h2>
+            <p className="text-gray-600 mb-6">{error || "Ce projet n'existe pas ou a été supprimé."}</p>
+            <button
+              onClick={() => router.push('/dashboard/projects')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retour aux projets
+            </button>
+          </div>
+        </div>
+      </RouteGuard>
+    );
+  }
 
-  const itemVariants = {
-    hidden: { y: 30, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: {
-        type: "spring",
-        stiffness: 100,
-        damping: 12
-      }
-    }
-  };
+  const statusConfig = getStatusConfig(project.status);
+  const progress = getProgressPercentage(project.status);
+  const timeline = getProjectTimeline(project);
+
+  // Organiser les champs par étapes
+  const fieldsByStep = groupFieldsByStep(project.fields);
+  const sortedSteps = Object.keys(fieldsByStep).map(Number).sort((a, b) => a - b);
+
+  // Séparer les fichiers par type
+  const allFiles = project.fields.filter(field => field.files.length > 0);
+  const imageFiles = allFiles.filter(field => field.field_type === 'image');
+  const documentFiles = allFiles.filter(field => field.field_type === 'file');
+  const audioFiles = allFiles.filter(field => field.field_type === 'audio');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 p-6">
-      <motion.div
-        className="max-w-7xl mx-auto space-y-8"
-        variants={containerVariants}
-        initial="hidden"
-        animate={isLoaded ? "visible" : "hidden"}
-      >
-        {/* Breadcrumb simple */}
-        <motion.div variants={itemVariants} className="flex items-center text-sm text-gray-600">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center hover:text-gray-900 transition-colors"
+    <RouteGuard>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          {/* Breadcrumb */}
+          <motion.div
+            className="flex items-center text-sm text-gray-600 mb-8"
+            {...fadeInUp}
           >
-            Mes projets
-          </button>
-          <span className="mx-2">{">"}</span>
-          <span className="text-gray-900 font-medium">Projet n° {projectData.id}</span>
-        </motion.div>
+            <button
+              onClick={() => router.push('/dashboard/projects')}
+              className="flex items-center hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft size={16} className="mr-1" />
+              Mes projets
+            </button>
+            <span className="mx-2">{">"}</span>
+            <span className="text-gray-900 font-medium">Projet {project.reference}</span>
+          </motion.div>
 
-        {/* Hero Section avec plus d'animations et sans shadow */}
-        <motion.div
-          variants={itemVariants}
-          className="relative overflow-hidden rounded-lg backdrop-blur-xl bg-gradient-to-r from-white/40 to-white/20 border border-white/30"
-          whileHover={{ scale: 1.01 }}
-          transition={{ duration: 0.3 }}
-        >
-          {/* Background Pattern avec plus d'animation */}
+          {/* En-tête du projet */}
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-[#1EB1D1]/10 to-[#062C57]/10"
-            animate={{
-              background: [
-                "linear-gradient(to right, rgba(30, 177, 209, 0.1), rgba(6, 44, 87, 0.1))",
-                "linear-gradient(to right, rgba(6, 44, 87, 0.1), rgba(30, 177, 209, 0.1))",
-                "linear-gradient(to right, rgba(30, 177, 209, 0.1), rgba(6, 44, 87, 0.1))"
-              ]
-            }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-[#1EB1D1]/20 to-transparent rounded-full blur-3xl"
-            animate={{
-              x: [0, 20, 0],
-              y: [0, -10, 0],
-              scale: [1, 1.1, 1]
-            }}
-            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute -bottom-20 -left-20 w-60 h-60 bg-gradient-to-tr from-[#062C57]/20 to-transparent rounded-full blur-2xl"
-            animate={{
-              x: [0, -15, 0],
-              y: [0, 15, 0],
-              scale: [1, 0.9, 1]
-            }}
-            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          />
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="px-3 py-1 text-sm font-medium bg-blue-100 text-blue-800 rounded-full">
+                    {project.company_service.name}
+                  </span>
+                  <span className={`inline-flex items-center px-3 py-1 text-sm font-medium rounded-full ${statusConfig.className}`}>
+                    <div className={`w-2 h-2 ${statusConfig.dotColor} rounded-full mr-2`}></div>
+                    {statusConfig.label}
+                  </span>
+                </div>
 
-          <div className="relative p-8 lg:p-12">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
-              {/* Info principale avec plus d'animations */}
-              <div className="lg:col-span-2">
-                <motion.div
-                  initial={{ x: -30, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.3, duration: 0.6 }}
-                >
-                  <motion.div
-                    className="flex items-center space-x-3 mb-4"
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <motion.span
-                      className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-[#1EB1D1] to-[#17a2b8] text-white rounded-full"
-                      animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      {projectData.serviceType}
-                    </motion.span>
-                    <motion.span
-                      className="text-gray-600 text-sm"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.6 }}
-                    >
-                      {projectData.category}
-                    </motion.span>
-                  </motion.div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-3">
+                  {project.reference}
+                </h1>
 
-                  <motion.h1
-                    className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-[#062C57] to-[#1EB1D1] bg-clip-text text-transparent mb-4"
-                    initial={{ y: 30, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.5, duration: 0.8 }}
-                  >
-                    {projectData.title}
-                  </motion.h1>
-
-                  <motion.p
-                    className="text-gray-700 text-lg leading-relaxed mb-6"
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.7, duration: 0.6 }}
-                  >
-                    {projectData.description}
-                  </motion.p>
-
-                  {/* Client info avec avatar animé */}
-                  <motion.div
-                    className="flex items-center space-x-4 p-4 backdrop-blur-md bg-white/30 rounded-2xl border border-white/40"
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.9, duration: 0.5 }}
-                    whileHover={{ scale: 1.02 }}
-                  >
-                    <motion.div
-                      className="w-12 h-12 bg-gradient-to-br from-[#1EB1D1] to-[#062C57] rounded-full flex items-center justify-center text-white font-bold text-lg"
-                      animate={{ rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      {projectData.client.name.split(' ').map(n => n.charAt(0)).join('')}
-                    </motion.div>
-                    <div>
-                      <motion.p
-                        className="font-semibold text-gray-800"
-                        initial={{ x: -10, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 1.1 }}
-                      >
-                        {projectData.client.name}
-                      </motion.p>
-                      <motion.p
-                        className="text-gray-600 text-sm"
-                        initial={{ x: -10, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 1.2 }}
-                      >
-                        {projectData.client.email}
-                      </motion.p>
-                    </div>
-                  </motion.div>
-                </motion.div>
+                <p className="text-gray-600 leading-relaxed max-w-3xl">
+                  {project.company_service.description}
+                </p>
               </div>
 
-              {/* Stats circulaires avec plus d'animations */}
-              <motion.div
-                className="flex justify-center"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.8, duration: 0.8, type: "spring", stiffness: 100 }}
-              >
-                <motion.div
-                  className="relative"
-                  animate={{
-                    y: [0, -8, 0],
-                    rotate: [0, 2, -2, 0]
-                  }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  {/* Cercle de progression avec animation */}
-                  <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
-                    <motion.circle
-                      cx="50"
-                      cy="50"
+              {/* Indicateur de progrès */}
+              <div className="mt-6 lg:mt-0 lg:ml-8">
+                <div className="relative w-24 h-24">
+                  <svg className="w-24 h-24 transform -rotate-90">
+                    <circle
+                      cx="48"
+                      cy="48"
                       r="40"
-                      stroke="rgba(255,255,255,0.3)"
-                      strokeWidth="8"
+                      stroke="rgb(229 231 235)"
+                      strokeWidth="6"
                       fill="none"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 1.5, delay: 1 }}
                     />
-                    <motion.circle
-                      cx="50"
-                      cy="50"
+                    <circle
+                      cx="48"
+                      cy="48"
                       r="40"
-                      stroke="url(#gradient)"
-                      strokeWidth="8"
+                      stroke="rgb(37 99 235)"
+                      strokeWidth="6"
                       fill="none"
                       strokeLinecap="round"
-                      strokeDasharray={`${projectData.progress * 2.51} 251`}
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 2, delay: 1.2, ease: "easeOut" }}
+                      strokeDasharray={`${progress * 2.51} 251`}
                     />
-                    <defs>
-                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#1EB1D1" />
-                        <stop offset="100%" stopColor="#062C57" />
-                      </linearGradient>
-                    </defs>
                   </svg>
-                  <motion.div
-                    className="absolute inset-0 flex items-center justify-center"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 1.5, duration: 0.5 }}
-                  >
+                  <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
-                      <motion.div
-                        className="text-2xl font-bold text-gray-800"
-                        animate={{ scale: [1, 1.1, 1] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                      >
-                        {projectData.progress}%
-                      </motion.div>
-                      <div className="text-sm text-gray-600">Progrès</div>
+                      <div className="text-xl font-bold text-gray-900">{progress}%</div>
+                      <div className="text-xs text-gray-500">Avancement</div>
                     </div>
-                  </motion.div>
-                </motion.div>
-              </motion.div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Métriques en bas avec animations séquentielles */}
-            <motion.div
-              className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-8"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: {},
-                visible: {
-                  transition: {
-                    staggerChildren: 0.1,
-                    delayChildren: 1.8
-                  }
-                }
-              }}
-            >
-              {[
-                { icon: DollarSign, label: "Budget", value: `${parseInt(projectData.budget).toLocaleString()} €`, color: "from-green-400 to-emerald-500" },
-                { icon: Calendar, label: "Créé le", value: projectData.creationDate, color: "from-blue-400 to-cyan-500" },
-                { icon: Smartphone, label: "Plateforme", value: projectData.platform, color: "from-purple-400 to-violet-500" },
-                { icon: User, label: "Assigné à", value: projectData.assignedTo, color: "from-orange-400 to-red-500" }
-              ].map((item, index) => (
-                <motion.div
-                  key={index}
-                  className="backdrop-blur-md bg-white/25 rounded-2xl p-4 border border-white/30 hover:bg-white/35 transition-all duration-300"
-                  variants={{
-                    hidden: { y: 30, opacity: 0 },
-                    visible: { y: 0, opacity: 1 }
-                  }}
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <motion.div
-                    className={`w-10 h-10 bg-gradient-to-br ${item.color} rounded-xl flex items-center justify-center mb-3`}
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: index * 0.5 }}
-                  >
-                    <item.icon size={20} className="text-white" />
-                  </motion.div>
-                  <p className="text-xs text-gray-600 uppercase tracking-wide">{item.label}</p>
-                  <motion.p
-                    className="font-bold text-gray-800"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 2 + index * 0.1, duration: 0.3 }}
-                  >
-                    {item.value}
-                  </motion.p>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </motion.div>
-
-        {/* Fonctionnalités en liste stylée avec animations */}
-        <motion.div variants={itemVariants} className="backdrop-blur-xl bg-white/30 rounded-lg p-8 border border-white/30">
-          <motion.h2
-            className="text-2xl font-bold text-gray-800 mb-6 flex items-center"
-            initial={{ x: -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <Zap className="mr-3 text-[#1EB1D1]" />
-            </motion.div>
-            Fonctionnalités requises
-          </motion.h2>
-          <motion.div
-            className="space-y-4"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: {},
-              visible: {
-                transition: {
-                  staggerChildren: 0.15,
-                  delayChildren: 0.3
-                }
-              }
-            }}
-          >
-            {projectData.features.map((feature, index) => (
-              <motion.div
-                key={index}
-                className="flex items-center p-4 backdrop-blur-md bg-white/40 rounded-2xl border border-white/40 hover:bg-white/60 transition-all duration-300 group"
-                variants={{
-                  hidden: { x: -30, opacity: 0 },
-                  visible: { x: 0, opacity: 1 }
-                }}
-                whileHover={{ x: 5, scale: 1.02 }}
-                transition={{ duration: 0.2 }}
-              >
-                <motion.div
-                  className="w-10 h-10 bg-gradient-to-br from-[#1EB1D1] to-[#062C57] rounded-full flex items-center justify-center mr-4"
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 5, -5, 0]
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                    delay: index * 0.2
-                  }}
-                >
-                  <motion.div
-                    className="w-2 h-2 bg-white rounded-full"
-                    animate={{ scale: [1, 1.5, 1] }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: index * 0.3
-                    }}
+            {/* Informations client et métriques */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-6 border-t border-gray-200">
+              {/* Client */}
+              <div className="flex items-center space-x-3">
+                {project.user.avatar && project.user.avatar !== "/tmp/phpJWLz2F" ? (
+                  <img
+                    src={project.user.avatar}
+                    alt={`${project.user.first_name} ${project.user.last_name}`}
+                    className="w-12 h-12 rounded-full object-cover"
                   />
-                </motion.div>
-                <motion.span
-                  className="font-medium text-gray-800 group-hover:text-[#062C57] transition-colors"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.5 + index * 0.1 }}
-                >
-                  {feature}
-                </motion.span>
-                <motion.div
-                  className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
-                  whileHover={{ scale: 1.2 }}
-                >
-                  <div className="w-2 h-2 bg-[#1EB1D1] rounded-full" />
-                </motion.div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </motion.div>
-
-        {/* Grid principal */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Message audio stylé avec plus d'animations */}
-          <motion.div
-            variants={itemVariants}
-            className="lg:col-span-2 backdrop-blur-xl bg-gradient-to-br from-white/40 to-white/20 rounded-lg p-8 border border-white/30"
-          >
-            <motion.h3
-              className="text-2xl font-bold text-gray-800 mb-6 flex items-center"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <motion.div
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <Volume2 className="mr-3 text-[#1EB1D1]" />
-              </motion.div>
-              Message vocal du client
-            </motion.h3>
-
-            <motion.div
-              className="relative p-6 bg-gradient-to-r from-[#1EB1D1]/10 to-[#062C57]/10 rounded-2xl border border-white/40"
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
-            >
-              <div className="flex items-center space-x-6">
-                <motion.button
-                  onClick={toggleAudio}
-                  className="w-16 h-16 bg-gradient-to-br from-[#1EB1D1] to-[#062C57] rounded-full flex items-center justify-center text-white"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  animate={{
-                    boxShadow: [
-                      "0 0 0 0 rgba(30, 177, 209, 0.4)",
-                      "0 0 0 10px rgba(30, 177, 209, 0)",
-                      "0 0 0 0 rgba(30, 177, 209, 0)"
-                    ]
-                  }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <motion.div
-                    animate={isAudioPlaying ? { scale: [1, 1.2, 1] } : {}}
-                    transition={{ duration: 0.5, repeat: isAudioPlaying ? Infinity : 0 }}
-                  >
-                    {isAudioPlaying ? <Pause size={24} /> : <Play size={24} />}
-                  </motion.div>
-                </motion.button>
-
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <div className="flex-1 h-2 bg-white/30 rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-gradient-to-r from-[#1EB1D1] to-[#062C57] rounded-full"
-                        initial={{ width: "0%" }}
-                        animate={{ width: "35%" }}
-                        transition={{ duration: 1.5, delay: 0.6, ease: "easeOut" }}
-                      />
-                    </div>
-                    <motion.span
-                      className="text-sm font-medium text-gray-700"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.8 }}
-                    >
-                      2:34
-                    </motion.span>
+                ) : (
+                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-medium">
+                    {project.user.first_name.charAt(0)}{project.user.last_name?.charAt(0)}
                   </div>
-                  <motion.p
-                    className="text-gray-700"
-                    initial={{ y: 10, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.6 }}
-                  >
-                    Explication détaillée du projet par le client
-                  </motion.p>
+                )}
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {project.user.first_name} {project.user.last_name}
+                  </p>
+                  <p className="text-sm text-gray-500">{project.user.email}</p>
                 </div>
               </div>
 
-              {/* Visualiseur audio animé avec plus d'effets */}
-              <motion.div
-                className="flex items-center justify-center space-x-1 mt-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
-              >
-                {[...Array(20)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="w-1 bg-gradient-to-t from-[#1EB1D1] to-[#062C57] rounded-full"
-                    style={{ height: Math.random() * 30 + 10 }}
-                    animate={isAudioPlaying ? {
-                      scaleY: [1, Math.random() * 2 + 0.5, 1],
-                      opacity: [0.5, 1, 0.5]
-                    } : {
-                      scaleY: [1, 0.3, 1]
-                    }}
-                    transition={{
-                      duration: 0.5 + Math.random() * 0.5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: i * 0.05
-                    }}
-                  />
-                ))}
-              </motion.div>
-            </motion.div>
+              {/* Budget */}
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <DollarSign size={20} className="text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Budget</p>
+                  <p className="font-semibold text-gray-900">
+                    {project.final_price > 0
+                      ? formatPrice(project.final_price)
+                      : formatPrice(project.company_service.price)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Date de création */}
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Calendar size={20} className="text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Créé</p>
+                  <p className="font-semibold text-gray-900">{project.created_at_humanized}</p>
+                </div>
+              </div>
+
+              {/* Entreprise */}
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <User size={20} className="text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Entreprise</p>
+                  <p className="font-semibold text-gray-900">{project.company_service.company.name}</p>
+                </div>
+              </div>
+            </div>
           </motion.div>
 
-          {/* Timeline moderne avec plus d'animations */}
-          <motion.div
-            variants={itemVariants}
-            className="backdrop-blur-xl bg-white/30 rounded-3xl p-8 border border-white/30"
-          >
-            <motion.h3
-              className="text-xl font-bold text-gray-800 mb-6 flex items-center"
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <motion.div
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              >
-                <Target className="mr-3 text-[#1EB1D1]" />
-              </motion.div>
-              Timeline
-            </motion.h3>
-
-            <motion.div
-              className="space-y-6"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: {},
-                visible: {
-                  transition: {
-                    staggerChildren: 0.2,
-                    delayChildren: 0.4
-                  }
-                }
-              }}
-            >
-              {[
-                { title: "Projet créé", date: "15 Jan 2025", status: "completed" },
-                { title: "Développement", date: "18 Jan 2025", status: "completed" },
-                { title: "Tests utilisateur", date: "15 Fév 2025", status: "current" },
-                { title: "Livraison", date: "28 Fév 2025", status: "upcoming" }
-              ].map((item, index) => (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Colonne principale */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Informations saisies par l'utilisateur */}
+              {project.fields.length > 0 && (
                 <motion.div
-                  key={index}
-                  className="flex items-start space-x-4"
-                  variants={{
-                    hidden: { x: -30, opacity: 0 },
-                    visible: { x: 0, opacity: 1 }
-                  }}
-                  whileHover={{ x: 5 }}
-                  transition={{ duration: 0.2 }}
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                  <motion.div
-                    className={`w-4 h-4 rounded-full mt-1 ${
-                      item.status === 'completed' ? 'bg-gradient-to-r from-green-400 to-emerald-500' :
-                      item.status === 'current' ? 'bg-gradient-to-r from-[#1EB1D1] to-[#062C57]' :
-                      'bg-gray-300'
-                    }`}
-                    animate={item.status === 'current' ? {
-                      scale: [1, 1.3, 1],
-                      boxShadow: [
-                        "0 0 0 0 rgba(30, 177, 209, 0.4)",
-                        "0 0 0 8px rgba(30, 177, 209, 0)",
-                        "0 0 0 0 rgba(30, 177, 209, 0)"
-                      ]
-                    } : {}}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
-                  <motion.div
-                    initial={{ y: 10, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.6 + index * 0.1 }}
-                  >
-                    <p className={`font-medium ${item.status === 'upcoming' ? 'text-gray-500' : 'text-gray-800'}`}>
-                      {item.title}
-                    </p>
-                    <p className="text-sm text-gray-600">{item.date}</p>
-                  </motion.div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </motion.div>
-        </div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <Hash className="mr-3 text-blue-600" size={24} />
+                    Informations du projet
+                  </h2>
 
-        {/* Documents en liste avec animations */}
-        <motion.div
-          variants={itemVariants}
-          className="backdrop-blur-xl bg-white/30 rounded-lg p-8 border border-white/30"
-        >
-          <motion.h3
-            className="text-2xl font-bold text-gray-800 mb-6"
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            Documents du projet
-          </motion.h3>
-          <motion.div
-            className="space-y-4"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: {},
-              visible: {
-                transition: {
-                  staggerChildren: 0.1,
-                  delayChildren: 0.3
-                }
-              }
-            }}
-          >
-            {projectDocuments.map((doc, index) => (
+                  <div className="space-y-8">
+                    {sortedSteps.map((stepNumber) => {
+                      const stepFields = sortFieldsByPosition(fieldsByStep[stepNumber]);
+
+                      return (
+                        <div key={stepNumber}>
+                          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                            <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm mr-3">
+                              {stepNumber}
+                            </span>
+                            Étape {stepNumber}
+                          </h3>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {stepFields.map((field) => {
+                              const fieldIcon = getFieldTypeIcon(field.field_type);
+                              const formattedValue = formatFieldValue(field);
+
+                              return (
+                                <div key={field.field_id} className="border border-gray-200 rounded-lg p-4">
+                                  <div className="flex items-center space-x-2 mb-3">
+                                    <div className={`w-6 h-6 bg-gradient-to-r ${fieldIcon.color} rounded flex items-center justify-center text-xs`}>
+                                      {fieldIcon.icon}
+                                    </div>
+                                    <h4 className="font-medium text-gray-900">
+                                      {field.field_label}
+                                      {field.is_required && <span className="text-red-500 ml-1">*</span>}
+                                    </h4>
+                                  </div>
+
+                                  <div className="text-sm">
+                                    {field.field_type === 'textarea' ? (
+                                      <div className="bg-gray-50 rounded p-3">
+                                        <p className="text-gray-700 whitespace-pre-wrap">
+                                          {field.value || "Non renseigné"}
+                                        </p>
+                                      </div>
+                                    ) : (field.field_type === 'file' || field.field_type === 'image') ? (
+                                      <div className="space-y-2">
+                                        {field.files.length > 0 ? (
+                                          field.files.map((file, fileIndex) => (
+                                            <div key={fileIndex} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                              <div className="flex items-center space-x-2">
+                                                <FileText size={16} className="text-gray-400" />
+                                                <span className="text-gray-700 text-sm truncate">
+                                                  {file.split('/').pop() || file}
+                                                </span>
+                                              </div>
+                                              <button
+                                                onClick={() => window.open(file, '_blank')}
+                                                className="p-1 hover:bg-gray-200 rounded"
+                                              >
+                                                <Eye size={14} className="text-blue-600" />
+                                              </button>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <p className="text-gray-500 italic">Aucun fichier</p>
+                                        )}
+                                      </div>
+                                    ) : field.field_type === 'email' ? (
+                                      <a
+                                        href={`mailto:${field.value}`}
+                                        className="text-blue-600 hover:text-blue-800 flex items-center"
+                                      >
+                                        <Mail size={14} className="mr-1" />
+                                        {field.value}
+                                      </a>
+                                    ) : field.field_type === 'phone' ? (
+                                      <a
+                                        href={`tel:${field.value}`}
+                                        className="text-blue-600 hover:text-blue-800 flex items-center"
+                                      >
+                                        <Phone size={14} className="mr-1" />
+                                        {field.value}
+                                      </a>
+                                    ) : field.field_type === 'url' ? (
+                                      <a
+                                        href={field.value}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 flex items-center"
+                                      >
+                                        <Globe size={14} className="mr-1" />
+                                        {field.value}
+                                        <ExternalLink size={12} className="ml-1" />
+                                      </a>
+                                    ) : (
+                                      <p className="text-gray-700">{formattedValue}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Images */}
+              {imageFiles.length > 0 && (
+                <motion.div
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <ImageIcon className="mr-3 text-green-600" size={24} />
+                    Images du projet
+                  </h2>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {imageFiles.map((field, index) =>
+                      field.files.map((file, fileIndex) => (
+                        <div key={`${index}-${fileIndex}`} className="relative group">
+                          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={file}
+                              alt={field.field_label}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                              onClick={() => window.open(file, '_blank')}
+                            />
+                          </div>
+                          <p className="text-sm text-gray-600 mt-2 text-center">{field.field_label}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Documents */}
+              {documentFiles.length > 0 && (
+                <motion.div
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <FileText className="mr-3 text-blue-600" size={24} />
+                    Documents
+                  </h2>
+
+                  <div className="space-y-3">
+                    {documentFiles.map((field, index) =>
+                      field.files.map((file, fileIndex) => (
+                        <div key={`${index}-${fileIndex}`} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <FileText size={20} className="text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{field.field_label}</p>
+                              <p className="text-sm text-gray-500">{file.split('/').pop()}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => window.open(file, '_blank')}
+                            className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                          >
+                            <Download size={18} className="text-gray-600" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Audio */}
+              {audioFiles.length > 0 && (
+                <motion.div
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                >
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+                    <Volume2 className="mr-3 text-purple-600" size={24} />
+                    Messages audio
+                  </h2>
+
+                  <div className="space-y-4">
+                    {audioFiles.map((field, index) =>
+                      field.files.map((file, fileIndex) => (
+                        <div key={`${index}-${fileIndex}`} className="p-4 border border-gray-200 rounded-lg">
+                          <h3 className="font-medium text-gray-900 mb-3">{field.field_label}</h3>
+                          <div className="flex items-center space-x-4">
+                            <button
+                              onClick={toggleAudio}
+                              className="w-12 h-12 bg-purple-600 text-white rounded-full flex items-center justify-center hover:bg-purple-700 transition-colors"
+                            >
+                              {isAudioPlaying ? <Pause size={20} /> : <Play size={20} />}
+                            </button>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <div className="flex-1 h-2 bg-gray-200 rounded-full">
+                                  <div className="h-2 bg-purple-600 rounded-full" style={{ width: '35%' }}></div>
+                                </div>
+                                <span className="text-sm text-gray-600">2:34</span>
+                              </div>
+                              <p className="text-sm text-gray-600">{file.split('/').pop()}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-8">
+              {/* Timeline */}
               <motion.div
-                key={doc.id}
-                className="flex items-center justify-between p-4 backdrop-blur-md bg-white/40 rounded-2xl border border-white/40 hover:bg-white/60 transition-all duration-300 group"
-                variants={{
-                  hidden: { x: -30, opacity: 0 },
-                  visible: { x: 0, opacity: 1 }
-                }}
-                whileHover={{ x: 5, scale: 1.01 }}
-                transition={{ duration: 0.2 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.6 }}
               >
-                <div className="flex items-center space-x-4">
-                  <motion.div
-                    animate={{
-                      rotate: [0, 5, -5, 0],
-                      scale: [1, 1.05, 1]
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: index * 0.5
-                    }}
-                  >
-                    {getDocumentIcon(doc.type)}
-                  </motion.div>
-                  <div>
-                    <motion.h4
-                      className="font-semibold text-gray-900 group-hover:text-[#062C57] transition-colors"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.4 + index * 0.1 }}
-                    >
-                      {doc.name}
-                    </motion.h4>
-                    <motion.p
-                      className="text-sm text-gray-600"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.5 + index * 0.1 }}
-                    >
-                      {doc.size} • Ajouté le {doc.uploadDate}
-                    </motion.p>
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Timeline</h2>
+
+                <div className="space-y-4">
+                  {timeline.map((item, index) => (
+                    <div key={index} className="flex items-start space-x-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        item.status === 'completed' ? 'bg-green-100 text-green-600' :
+                        item.status === 'current' ? 'bg-blue-100 text-blue-600' :
+                        'bg-gray-100 text-gray-400'
+                      }`}>
+                        <item.icon size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-medium ${
+                          item.status === 'upcoming' ? 'text-gray-500' : 'text-gray-900'
+                        }`}>
+                          {item.label}
+                        </p>
+                        <p className="text-sm text-gray-500">{item.date}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Barre de progression */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">Progression</span>
+                    <span className="text-sm font-medium text-blue-600">{progress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${progress}%` }}
+                    ></div>
                   </div>
                 </div>
-                <motion.button
-                  className="p-3 hover:bg-white/50 rounded-xl transition-all duration-200 text-gray-600 hover:text-[#1EB1D1] opacity-0 group-hover:opacity-100"
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Download size={18} />
-                </motion.button>
               </motion.div>
-            ))}
-          </motion.div>
-        </motion.div>
 
-        {/* Galerie avec plus d'animations */}
-        <motion.div
-          variants={itemVariants}
-          className="backdrop-blur-xl bg-white/30 rounded-3xl p-8 border border-white/30"
-        >
-          <motion.h3
-            className="text-2xl font-bold text-gray-800 mb-6"
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            Galerie du projet
-          </motion.h3>
-          <motion.div
-            className="grid grid-cols-2 lg:grid-cols-4 gap-6"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: {},
-              visible: {
-                transition: {
-                  staggerChildren: 0.1,
-                  delayChildren: 0.3
-                }
-              }
-            }}
-          >
-            {galleryImages.map((image, index) => (
+              {/* Informations entreprise */}
               <motion.div
-                key={index}
-                className="aspect-square rounded-2xl bg-gradient-to-br from-gray-200 to-gray-300 overflow-hidden cursor-pointer group relative"
-                variants={{
-                  hidden: { scale: 0.8, opacity: 0 },
-                  visible: { scale: 1, opacity: 1 }
-                }}
-                whileHover={{ scale: 1.05, rotateY: 5 }}
-                transition={{ duration: 0.3 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.7 }}
               >
-                <motion.div
-                  className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1EB1D1]/20 to-[#062C57]/20 group-hover:from-[#1EB1D1]/30 group-hover:to-[#062C57]/30 transition-all duration-300"
-                  animate={{
-                    background: [
-                      "linear-gradient(to bottom right, rgba(30, 177, 209, 0.2), rgba(6, 44, 87, 0.2))",
-                      "linear-gradient(to bottom right, rgba(6, 44, 87, 0.2), rgba(30, 177, 209, 0.2))",
-                      "linear-gradient(to bottom right, rgba(30, 177, 209, 0.2), rgba(6, 44, 87, 0.2))"
-                    ]
-                  }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: index * 0.5 }}
-                >
-                  <motion.div
-                    animate={{
-                      scale: [1, 1.1, 1],
-                      rotate: [0, 5, -5, 0]
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                      delay: index * 0.3
-                    }}
-                  >
-                    <ImageIcon size={40} className="text-white/70" />
-                  </motion.div>
-                </motion.div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Entreprise</h2>
 
-                {/* Effet de brillance au hover */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-all duration-700"
-                  style={{ width: "50%" }}
-                />
+                <div className="space-y-4">
+                  {project.company_service.company.logo && (
+                    <img
+                      src={project.company_service.company.logo}
+                      alt={project.company_service.company.name}
+                      className="w-16 h-16 rounded-lg object-cover"
+                    />
+                  )}
+
+                  <div>
+                    <h3 className="font-semibold text-gray-900">
+                      {project.company_service.company.name}
+                    </h3>
+                    {project.company_service.company.slogan && (
+                      <p className="text-sm text-gray-600 italic mt-1">
+                        {project.company_service.company.slogan}
+                      </p>
+                    )}
+                  </div>
+
+                  {project.company_service.company.description && (
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {project.company_service.company.description}
+                    </p>
+                  )}
+
+                  <div className="space-y-2">
+                    {project.company_service.company.email && (
+                      <a
+                        href={`mailto:${project.company_service.company.email}`}
+                        className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        <Mail size={14} className="mr-2" />
+                        {project.company_service.company.email}
+                      </a>
+                    )}
+
+                    {project.company_service.company.phone && (
+                      <a
+                        href={`tel:${project.company_service.company.phone}`}
+                        className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        <Phone size={14} className="mr-2" />
+                        {project.company_service.company.phone}
+                      </a>
+                    )}
+
+                    {project.company_service.company.website && (
+                      <a
+                        href={project.company_service.company.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        <Globe size={14} className="mr-2" />
+                        Site web
+                        <ExternalLink size={12} className="ml-1" />
+                      </a>
+                    )}
+                  </div>
+                </div>
               </motion.div>
-            ))}
-          </motion.div>
-        </motion.div>
-      </motion.div>
-    </div>
+
+              {/* Facture */}
+              {project.invoice_file_path && (
+                <motion.div
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.8 }}
+                >
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Facture</h2>
+
+                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                        <FileText size={20} className="text-red-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Facture du projet</p>
+                        <p className="text-sm text-gray-500">Document PDF</p>
+                      </div>
+                    </div>
+                    <a
+                      href={project.invoice_file_path}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <Download size={18} className="text-gray-600" />
+                    </a>
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </RouteGuard>
   );
 }

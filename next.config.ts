@@ -3,8 +3,8 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: '158ea9937b33.ngrok-free.app',
+        protocol: 'https',
+        hostname: 'appcommands-staging.milleniumtechs.com',
         port: '',
         pathname: '/**',
       },

@@ -4,9 +4,9 @@
 import React, { useState, useEffect, ReactNode } from 'react';
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
-import Image from "next/image";
+// import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Home, FileText, Users, User, LogOut, ChevronDown, Check, Buildng2 } from 'lucide-react';
+import { Menu, X, Home, FileText, Users, User, LogOut, ChevronDown, Check, Building2 } from 'lucide-react';
 import { useAuthContext } from '@/contexts/AuthContext';
 
 type DashboardLayoutProps = {
@@ -215,12 +215,12 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                       ))}
 
                       {/* Option pour créer/rejoindre une entreprise */}
-                      {/* <div className="border-t border-gray-100 mt-2 pt-2">
+                      <div className="border-t border-gray-100 mt-2 pt-2">
                         <button className="w-full flex items-center px-3 py-2 hover:bg-gray-50 transition-colors text-gray-600">
                           <Building2 size={16} className="mr-3" />
                           <span className="text-sm">Créer une entreprise</span>
                         </button>
-                      </div> */}
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -342,19 +342,19 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <Menu size={24} />
               </button>
               {/* Logo de l'entreprise courante */}
-              {currentCompany?.logo ? (
-                <Image
+              {/* {currentCompany?.logo ? ( */}
+                {/* <Image
                   src={currentCompany.logo}
                   alt={currentCompany.name}
                   width={160}
                   height={30}
                   className="object-contain"
-                />
-              ) : (
+                /> */}
+              {/* // ) : ( */}
                 <div className="text-xl font-bold bg-gradient-to-r from-[#062C57] to-[#1EB1D1] bg-clip-text text-transparent">
                   {currentCompany?.name || 'Millenium Tech'}
                 </div>
-              )}
+              {/* // )} */}
             </div>
             <div className="flex items-center space-x-4">
               {/* Notifications */}

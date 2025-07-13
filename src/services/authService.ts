@@ -166,8 +166,8 @@ export class AuthService {
     formData.append('telephone', profileData.telephone);
     formData.append('_method', 'PUT');
 
-    if (profileData.avatar) {
-      formData.append('avatar', profileData.avatar);
+    if (profileData._avatar) {
+      formData.append('_avatar', profileData._avatar);
     }
 
     const response = await apiService.postFormData<ApiResponse<User>>('/me/profil', formData);

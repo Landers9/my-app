@@ -51,7 +51,7 @@ export interface User {
   last_name: string | null;
   email: string;
   telephone: string | null;
-  avatar: string | null;
+  _avatar: string | null;
   is_active: boolean;
   role?: string;
   has_super_admin_access: number;
@@ -85,7 +85,7 @@ export interface ProfileUpdateRequest {
   first_name: string;
   last_name: string;
   telephone: string;
-  avatar?: File | null;
+  _avatar?: File | null;
 }
 
 export interface PasswordChangeRequest {
@@ -98,7 +98,7 @@ export interface ProfileFormData {
   first_name: string;
   last_name: string;
   telephone: string;
-  avatar?: File | null;
+  _avatar?: File | null;
 }
 
 export interface PasswordFormData {
@@ -109,7 +109,8 @@ export interface PasswordFormData {
 
 // ======= REQUESTS =======
 
-export interface ProjectField {
+// Type pour les champs lors de la création d'un projet
+export interface ProjectFieldRequest {
   value: string;
   file: string | File | Blob;
   field_id: string;
@@ -117,7 +118,7 @@ export interface ProjectField {
 
 export interface ProjectRequest {
   company_service_id: string;
-  fields: ProjectField[];
+  fields: ProjectFieldRequest[];
 }
 
 export interface ProjectResponse {
@@ -134,9 +135,23 @@ export interface LoginRequest {
 
 // ======= PROJECT MODELS =======
 
+// Type pour les champs reçus dans les données du projet
+export interface ProjectField {
+  field_id: string;
+  field_label: string;
+  value: string;
+  files: string[];
+  is_required: boolean;
+  step: number;
+  position: number;
+  options: any | null;
+  field_type: string;
+}
+
 export interface Project {
   id: string;
   status: ProjectStatus;
+  fields: ProjectField[];
   company_service: CompanyService;
   user: ProjectUser;
   invoice_file_path: string | null;
@@ -205,6 +220,13 @@ export interface ProjectsResponse {
   count: number;
   data: Project[];
   message: string;
+}
+
+export interface ProjectDetailResponse {
+  success: boolean;
+  count: number;
+  data: Project;
+  message: string | null;
 }
 
 export interface ProjectFilters {

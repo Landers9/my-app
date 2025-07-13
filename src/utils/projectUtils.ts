@@ -1,6 +1,6 @@
 // utils/projectUtils.ts
 
-import { ProjectStatus } from '@/types/models';
+import { ProjectStatus, ProjectField } from '@/types/models';
 
 export const getStatusConfig = (status: ProjectStatus) => {
   const configs = {
@@ -73,3 +73,88 @@ export const getStatusOptions = () => [
   { value: 'completed', label: 'Terminé' },
   { value: 'achieved', label: 'Livré' }
 ];
+
+// Nouvelles fonctions pour les champs du projet
+
+export const getFieldTypeIcon = (fieldType: string) => {
+  const iconMap: Record<string, { icon: string, color: string }> = {
+    text: { icon: '📝', color: 'from-blue-400 to-cyan-500' },
+    textarea: { icon: '📄', color: 'from-green-400 to-emerald-500' },
+    email: { icon: '📧', color: 'from-purple-400 to-violet-500' },
+    phone: { icon: '📞', color: 'from-orange-400 to-red-500' },
+    number: { icon: '🔢', color: 'from-indigo-400 to-purple-500' },
+    date: { icon: '📅', color: 'from-pink-400 to-rose-500' },
+    time: { icon: '🕐', color: 'from-cyan-400 to-blue-500' },
+    url: { icon: '🔗', color: 'from-teal-400 to-green-500' },
+    file: { icon: '📎', color: 'from-gray-400 to-slate-500' },
+    image: { icon: '🖼️', color: 'from-emerald-400 to-teal-500' },
+    select: { icon: '📋', color: 'from-violet-400 to-purple-500' },
+    radio: { icon: '🔘', color: 'from-rose-400 to-pink-500' },
+    checkbox: { icon: '☑️', color: 'from-amber-400 to-yellow-500' },
+    password: { icon: '🔒', color: 'from-red-400 to-pink-500' }
+  };
+
+  return iconMap[fieldType] || iconMap.text;
+};
+
+export const formatFieldValue = (field: ProjectField): string => {
+  if (!field.value && field.files.length === 0) {
+    return 'Non renseigné';
+  }
+
+  switch (field.field_type) {
+    case 'email':
+      return field.value;
+    case 'phone':
+      return field.value;
+    case 'url':
+      return field.value;
+    case 'date':
+      try {
+        return new Date(field.value).toLocaleDateString('fr-FR');
+      } catch {
+        return field.value;
+      }
+    case 'time':
+      return field.value;
+    case 'number':
+      return field.value;
+    case 'file':
+    case 'image':
+      if (field.files.length > 0) {
+        return `${field.files.length} fichier${field.files.length > 1 ? 's' : ''} joint${field.files.length > 1 ? 's' : ''}`;
+      }
+      return field.value || 'Aucun fichier';
+    case 'textarea':
+      return field.value.length > 100
+        ? field.value.substring(0, 100) + '...'
+        : field.value;
+    case 'select':
+    case 'radio':
+      return field.value;
+    case 'checkbox':
+      try {
+        const values = JSON.parse(field.value);
+        return Array.isArray(values) ? values.join(', ') : field.value;
+      } catch {
+        return field.value;
+      }
+    default:
+      return field.value;
+  }
+};
+
+export const groupFieldsByStep = (fields: ProjectField[]): Record<number, ProjectField[]> => {
+  return fields.reduce((groups, field) => {
+    const step = field.step;
+    if (!groups[step]) {
+      groups[step] = [];
+    }
+    groups[step].push(field);
+    return groups;
+  }, {} as Record<number, ProjectField[]>);
+};
+
+export const sortFieldsByPosition = (fields: ProjectField[]): ProjectField[] => {
+  return [...fields].sort((a, b) => a.position - b.position);
+};

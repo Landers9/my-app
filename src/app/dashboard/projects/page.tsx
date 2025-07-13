@@ -1,21 +1,27 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, MoreHorizontal, Eye, Edit, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { RouteGuard } from "@/components/RouteGuard";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { ProjectService } from "@/services/projectService";
 import { Project } from "@/types/models";
 import { getClientInitials } from "@/utils/projectUtils";
-import { ProjectService } from "@/services/projectService";
 
 export default function ProjectsPage() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("En cours");
   const [selectedCategory, setSelectedCategory] = useState("Catégories");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{top: number, left: number} | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalProjects, setTotalProjects] = useState(0);
+  const [perPage] = useState(8); // 8 projets par page
   const router = useRouter();
   const { currentCompany } = useAuthContext();
 
@@ -23,26 +29,113 @@ export default function ProjectsPage() {
     setIsLoaded(true);
   }, []);
 
-  // Charger les projets une seule fois
+  // Charger les projets avec pagination
   useEffect(() => {
     const fetchProjects = async () => {
       if (!currentCompany?.id) return;
 
       try {
         setIsLoading(true);
-        const response = await ProjectService.getCompanyProjects(currentCompany.id);
+        const filters = {
+          page: currentPage,
+          per_page: perPage
+        };
+        const response = await ProjectService.getCompanyProjects(currentCompany.id, filters);
         setProjects(response.data);
+        setTotalProjects(response.count);
+        setTotalPages(Math.ceil(response.count / perPage));
       } catch (error) {
         console.error('Erreur lors du chargement des projets:', error);
-        // Ne pas relancer, garder un tableau vide
         setProjects([]);
+        setTotalProjects(0);
+        setTotalPages(0);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchProjects();
-  }, [currentCompany?.id]); // Une seule fois quand la company change
+  }, [currentCompany?.id, currentPage, perPage]); // Recharger quand la page change
+
+  // Fonctions de pagination
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      setOpenDropdown(null); // Fermer les dropdowns ouverts
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Générer les numéros de pages à afficher
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      // Afficher toutes les pages si il y en a peu
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Logique pour afficher pages avec ...
+      if (currentPage <= 3) {
+        // Début: 1, 2, 3, 4, ..., last
+        pages.push(1, 2, 3, 4);
+        if (totalPages > 5) pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Fin: 1, ..., last-3, last-2, last-1, last
+        pages.push(1);
+        if (totalPages > 5) pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // Milieu: 1, ..., current-1, current, current+1, ..., last
+        pages.push(1);
+        pages.push('...');
+        pages.push(currentPage - 1, currentPage, currentPage + 1);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
+
+  const toggleDropdown = (projectId: string, event?: React.MouseEvent) => {
+    if (openDropdown === projectId) {
+      setOpenDropdown(null);
+      setDropdownPosition(null);
+    } else {
+      setOpenDropdown(projectId);
+
+      // Calculer la position du dropdown
+      if (event) {
+        const buttonRect = (event.target as HTMLElement).closest('button')?.getBoundingClientRect();
+        if (buttonRect) {
+          const scrollY = window.scrollY;
+          const scrollX = window.scrollX;
+
+          setDropdownPosition({
+            top: buttonRect.bottom + scrollY + 5, // 5px sous le bouton
+            left: buttonRect.right + scrollX - 192 // 192px = largeur du dropdown, aligné à droite du bouton
+          });
+        }
+      }
+    }
+  };
 
   // Fonctions pour gérer les actions des projets
   const handleViewProject = (projectId: string) => {
@@ -59,18 +152,32 @@ export default function ProjectsPage() {
     // Logique pour supprimer le projet
   };
 
-  const toggleDropdown = (projectId: string) => {
-    setOpenDropdown(openDropdown === projectId ? null : projectId);
-  };
-
   // Fermer le dropdown quand on clique ailleurs
   useEffect(() => {
-    const handleClickOutside = () => setOpenDropdown(null);
+    const handleClickOutside = () => {
+      setOpenDropdown(null);
+      setDropdownPosition(null);
+    };
     if (openDropdown) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [openDropdown]);
+
+  // Mapper les statuts API vers les statuts de l'interface
+  const getDisplayStatus = (apiStatus: string) => {
+    const statusMap: Record<string, string> = {
+      'submitted': 'En attente',
+      'processing': 'En cours',
+      'approved': 'En cours',
+      'in_development': 'En cours',
+      'in_testing': 'En cours',
+      'completed': 'Terminé',
+      'achieved': 'Terminé',
+      'rejected': 'Annulé'
+    };
+    return statusMap[apiStatus] || 'En cours';
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -95,21 +202,6 @@ export default function ProjectsPage() {
         damping: 10
       }
     }
-  };
-
-  // Mapper les statuts API vers les statuts de l'interface
-  const getDisplayStatus = (apiStatus: string) => {
-    const statusMap: Record<string, string> = {
-      'submitted': 'En attente',
-      'processing': 'En cours',
-      'approved': 'En cours',
-      'in_development': 'En cours',
-      'in_testing': 'En cours',
-      'completed': 'Terminé',
-      'achieved': 'Terminé',
-      'rejected': 'Annulé'
-    };
-    return statusMap[apiStatus] || 'En cours';
   };
 
   return (
@@ -267,15 +359,22 @@ export default function ProjectsPage() {
                               className="hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-colors duration-150"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleDropdown(project.id);
+                                toggleDropdown(project.id, e);
                               }}
                             >
                               <MoreHorizontal size={16} />
                             </button>
 
-                            {/* Dropdown menu avec z-index élevé */}
-                            {openDropdown === project.id && (
-                              <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-1 z-[9999]">
+                            {/* Dropdown menu avec positionnement fixed précis */}
+                            {openDropdown === project.id && dropdownPosition && (
+                              <div
+                                className="fixed bg-white rounded-lg shadow-xl border border-gray-100 py-1 w-48"
+                                style={{
+                                  zIndex: 99999,
+                                  top: `${dropdownPosition.top}px`,
+                                  left: `${Math.max(dropdownPosition.left, 10)}px` // Minimum 10px du bord gauche
+                                }}
+                              >
                                 <button
                                   onClick={() => handleViewProject(project.id)}
                                   className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
@@ -308,35 +407,65 @@ export default function ProjectsPage() {
               </table>
             </div>
 
-            {/* Pagination améliorée */}
-            <div className="bg-white px-6 py-4 border-t border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600 font-medium">
-                  Affichage de <span className="font-semibold text-gray-900">1-{projects.length}</span> sur <span className="font-semibold text-gray-900">{projects.length}</span> projets
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors duration-150">
-                    <span className="text-sm font-medium">‹</span>
-                  </button>
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#1EB1D1] text-white text-sm font-semibold shadow-sm">
-                    1
-                  </button>
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors duration-150">
-                    <span className="text-sm font-medium">2</span>
-                  </button>
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors duration-150">
-                    <span className="text-sm font-medium">3</span>
-                  </button>
-                  <span className="text-gray-400 text-sm">...</span>
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors duration-150">
-                    <span className="text-sm font-medium">12</span>
-                  </button>
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors duration-150">
-                    <span className="text-sm font-medium">›</span>
-                  </button>
+            {/* Pagination fonctionnelle */}
+            {totalPages > 1 && (
+              <div className="bg-white px-6 py-4 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600 font-medium">
+                    Affichage de <span className="font-semibold text-gray-900">
+                      {((currentPage - 1) * perPage) + 1}-{Math.min(currentPage * perPage, totalProjects)}
+                    </span> sur <span className="font-semibold text-gray-900">{totalProjects}</span> projets
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {/* Bouton précédent */}
+                    <button
+                      onClick={goToPreviousPage}
+                      disabled={currentPage === 1}
+                      className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors duration-150 ${
+                        currentPage === 1
+                          ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <span className="text-sm font-medium">‹</span>
+                    </button>
+
+                    {/* Numéros de pages */}
+                    {getPageNumbers().map((page, index) => (
+                      <React.Fragment key={index}>
+                        {page === '...' ? (
+                          <span className="text-gray-400 text-sm px-2">...</span>
+                        ) : (
+                          <button
+                            onClick={() => goToPage(page as number)}
+                            className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-semibold transition-colors duration-150 ${
+                              currentPage === page
+                                ? 'bg-[#1EB1D1] text-white shadow-sm'
+                                : 'border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        )}
+                      </React.Fragment>
+                    ))}
+
+                    {/* Bouton suivant */}
+                    <button
+                      onClick={goToNextPage}
+                      disabled={currentPage === totalPages}
+                      className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors duration-150 ${
+                        currentPage === totalPages
+                          ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      <span className="text-sm font-medium">›</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </motion.div>
         </motion.div>
       </div>

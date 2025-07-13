@@ -1,6 +1,6 @@
 // services/projectService.ts
 
-import { ProjectsResponse, ProjectFilters, Project, ApiResponse, ProjectRequest, ProjectResponse } from '@/types/models';
+import { ProjectsResponse, ProjectFilters, ApiResponse, ProjectRequest, ProjectResponse, ProjectDetailResponse } from '@/types/models';
 import { apiService } from './api';
 
 export class ProjectService {
@@ -33,7 +33,7 @@ export class ProjectService {
       return response.data;
     }
   }
-  
+
   /**
    * Récupère les projets d'une compagnie
    */
@@ -60,7 +60,7 @@ export class ProjectService {
   /**
    * Récupère un projet spécifique
    */
-  static async getProject(projectId: string): Promise<Project> {
+  static async getProject(projectId: string): Promise<ProjectDetailResponse> {
     return await apiService.get(`/projects/${projectId}`);
   }
 

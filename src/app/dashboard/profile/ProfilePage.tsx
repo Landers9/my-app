@@ -46,7 +46,7 @@ export default function ProfilePage() {
     first_name: user?.first_name || "",
     last_name: user?.last_name || "",
     telephone: user?.telephone || "",
-    avatar: null
+    _avatar: null
   });
 
   // Formulaire mot de passe
@@ -63,11 +63,11 @@ export default function ProfilePage() {
         first_name: user.first_name || "",
         last_name: user.last_name || "",
         telephone: user.telephone || "",
-        avatar: null
+        _avatar: null
       });
       // Définir l'avatar existant comme preview
-      if (user.avatar) {
-        setAvatarPreview(user.avatar);
+      if (user._avatar) {
+        setAvatarPreview(user._avatar);
       }
     }
   }, [user]);
@@ -102,7 +102,7 @@ export default function ProfilePage() {
         return;
       }
 
-      setProfileForm(prev => ({ ...prev, avatar: file }));
+      setProfileForm(prev => ({ ...prev, _avatar: file }));
 
       // Créer un preview
       const reader = new FileReader();
@@ -115,8 +115,8 @@ export default function ProfilePage() {
 
   // Supprimer l'avatar
   const handleRemoveAvatar = () => {
-    setProfileForm(prev => ({ ...prev, avatar: null }));
-    setAvatarPreview(user?.avatar || null);
+    setProfileForm(prev => ({ ...prev, _avatar: null }));
+    setAvatarPreview(user?._avatar || null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -133,7 +133,7 @@ export default function ProfilePage() {
         first_name: profileForm.first_name,
         last_name: profileForm.last_name,
         telephone: profileForm.telephone,
-        avatar: profileForm.avatar
+        _avatar: profileForm._avatar
       };
 
       await AuthService.updateProfile(updateData);
@@ -347,7 +347,7 @@ export default function ProfilePage() {
                       <Upload size={16} className="mr-2" />
                       Changer
                     </button>
-                    {(profileForm.avatar || avatarPreview) && (
+                    {(profileForm._avatar || avatarPreview) && (
                       <button
                         type="button"
                         onClick={handleRemoveAvatar}
