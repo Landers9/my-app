@@ -7,7 +7,7 @@ export default function Home() {
 
   useEffect(() => {
   // Redirection automatique vers la company 1
-  router.replace('/company/0197e484-612e-7b7f-ac64-abff96823798');
+  router.replace('/company/019812fc-e7b3-73e9-b791-5e25e3d6ba36');
   }, [router]);
 
   // Affichage temporaire pendant la redirection

@@ -13,7 +13,7 @@ export default function Home() {
   const params = useParams();
 
   // Récupérer l'ID depuis les paramètres de route, utiliser "0197e484-612e-7b7f-ac64-abff96823798" par défaut si pas d'ID
-  const companyId = (params.id as string) || "0197e484-612e-7b7f-ac64-abff96823798";
+  const companyId = (params.id as string) || "019812fc-e7b3-73e9-b791-5e25e3d6ba36";
 
   // Utilisation du hook pour récupérer la company
   const { company, isLoading } = useCompany(companyId);
@@ -177,7 +177,7 @@ export default function Home() {
         >
           {company?.logo ? (
             <Image
-              src={company.logo}
+              src={company.logo || '/images/logo_mts.png'}
               alt={company.name || "Logo entreprise"}
               width={180}
               height={40}

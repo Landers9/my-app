@@ -4,7 +4,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'appcommands-staging.milleniumtechs.com',
+        hostname: 'public.lagoradiscount.com',
         port: '',
         pathname: '/**',
       },
@@ -14,13 +14,6 @@ const nextConfig = {
         port: '8000',
         pathname: '/**',
       },
-      // Ajouter d'autres domaines si nécessaire
-      {
-        protocol: 'https',
-        hostname: 'milleniumtechs.com',
-        port: '',
-        pathname: '/**',
-      }
     ],
   },
   // Autres configurations...

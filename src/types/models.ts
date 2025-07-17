@@ -236,6 +236,50 @@ export interface ProjectFilters {
   per_page?: number;
 }
 
+// ======= Models client =======
+
+export interface ClientListItem {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  email: string;
+  telephone: string | null;
+  avatar: string;
+  is_active: boolean;
+  role: 'client' | 'admin';
+  created_at: string;
+}
+
+export interface ClientDetail {
+  id: string;
+  first_name: string;
+  last_name: string | null;
+  email: string;
+  telephone: string | null;
+  avatar: string;
+  projects: Project[]; // Utiliser le type Project si nécessaire
+  is_active: boolean;
+  role: 'client' | 'admin';
+  has_super_admin_access: number;
+  has_company: boolean;
+  token: string | null;
+  last_login_at: string | null;
+  created_at: string;
+}
+
+export interface ClientsListResponse {
+  count(count: any): unknown;
+  success: boolean;
+  data: ClientListItem[];
+  message?: string;
+}
+
+export interface ClientDetailResponse {
+  success: boolean;
+  data: ClientDetail;
+  message?: string;
+}
+
 // ======= UTILITAIRES =======
 
 export interface ApiError {
